@@ -9,7 +9,7 @@ interface ChartsProps {
   issues: GUTIssue[];
 }
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
+const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
 export const Charts: React.FC<ChartsProps> = ({ issues }) => {
   // Data for Area distribution
@@ -29,8 +29,8 @@ export const Charts: React.FC<ChartsProps> = ({ issues }) => {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-      <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
-        <h3 className="text-lg font-semibold text-slate-800 mb-4">Ocorrências por Área</h3>
+      <div className="bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-700">
+        <h3 className="text-lg font-semibold text-slate-100 mb-4">Ocorrências por Área</h3>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
@@ -43,27 +43,34 @@ export const Charts: React.FC<ChartsProps> = ({ issues }) => {
                 fill="#8884d8"
                 paddingAngle={5}
                 dataKey="value"
+                stroke="none"
               >
                 {areaData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip />
-              <Legend />
+              <Tooltip 
+                contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#f1f5f9' }}
+                itemStyle={{ color: '#f1f5f9' }}
+              />
+              <Legend wrapperStyle={{ color: '#cbd5e1' }} />
             </PieChart>
           </ResponsiveContainer>
         </div>
       </div>
 
-      <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
-        <h3 className="text-lg font-semibold text-slate-800 mb-4">Top 5 Riscos Críticos (Score GUT)</h3>
+      <div className="bg-slate-800 p-6 rounded-lg shadow-lg border border-slate-700">
+        <h3 className="text-lg font-semibold text-slate-100 mb-4">Top 5 Riscos Críticos (Score GUT)</h3>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={topRiskData} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#334155" />
               <XAxis type="number" domain={[0, 125]} hide />
-              <YAxis dataKey="name" type="category" width={100} tick={{fontSize: 12}} />
-              <Tooltip cursor={{fill: 'transparent'}} />
+              <YAxis dataKey="name" type="category" width={100} tick={{fontSize: 12, fill: '#94a3b8'}} />
+              <Tooltip 
+                cursor={{fill: '#334155', opacity: 0.4}} 
+                contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#f1f5f9' }}
+              />
               <Bar dataKey="score" fill="#ef4444" radius={[0, 4, 4, 0]} barSize={20} />
             </BarChart>
           </ResponsiveContainer>

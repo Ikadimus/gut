@@ -34,23 +34,23 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
       {/* Navbar */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
+      <header className="bg-slate-900 border-b border-slate-800 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => setView('dashboard')}>
             <div className="bg-green-600 p-2 rounded-lg text-white">
                 <Factory size={24} />
             </div>
             <div>
-                <h1 className="text-xl font-bold text-slate-800 tracking-tight">Biometano <span className="text-green-600">GUT</span></h1>
-                <p className="text-xs text-slate-500 font-medium">Sistema de Priorização de Manutenção</p>
+                <h1 className="text-xl font-bold text-slate-100 tracking-tight">Biometano <span className="text-green-500">GUT</span></h1>
+                <p className="text-xs text-slate-400 font-medium">Sistema de Priorização de Manutenção</p>
             </div>
           </div>
           <div className="flex gap-3">
              <button 
                 onClick={() => setView('areas')}
-                className={`px-3 py-2 rounded-lg font-medium text-sm flex items-center gap-2 transition-all ${view === 'areas' ? 'bg-slate-200 text-slate-900' : 'bg-white hover:bg-slate-50 text-slate-600 border border-slate-200'}`}
+                className={`px-3 py-2 rounded-lg font-medium text-sm flex items-center gap-2 transition-all ${view === 'areas' ? 'bg-slate-800 text-slate-100 border border-slate-700' : 'bg-transparent hover:bg-slate-800 text-slate-400 border border-transparent'}`}
                 title="Gerenciar Áreas"
              >
                 <Settings size={18} /> <span className="hidden sm:inline">Áreas</span>
@@ -59,14 +59,14 @@ function App() {
              {view === 'dashboard' || view === 'areas' ? (
                 <button 
                   onClick={() => setView('form')}
-                  className="bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 transition-all shadow-sm"
+                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 transition-all shadow-sm shadow-slate-900"
                 >
                   <PlusCircle size={18} /> Nova Ocorrência
                 </button>
              ) : (
                 <button 
                   onClick={() => setView('dashboard')}
-                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 transition-all"
+                  className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 transition-all"
                 >
                   <LayoutDashboard size={18} /> Voltar ao Painel
                 </button>
@@ -116,9 +116,9 @@ function App() {
 
       </main>
 
-      <footer className="bg-white border-t border-slate-200 mt-auto">
+      <footer className="bg-slate-900 border-t border-slate-800 mt-auto">
         <div className="max-w-7xl mx-auto px-4 py-6 text-center text-sm text-slate-500">
-          <p className="text-xs text-slate-400 mt-1">desenvolvido por 6580005</p>
+          <p className="text-xs text-slate-500 mt-1">desenvolvido por 6580005</p>
         </div>
       </footer>
     </div>
