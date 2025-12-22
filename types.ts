@@ -20,7 +20,8 @@ export interface GUTIssue {
   id: string;
   title: string;
   description: string;
-  area: string; // Changed from PlantArea to string to allow dynamic areas
+  immediateAction?: string; // New field added
+  area: string;
   gravity: number; // 1-5
   urgency: number; // 1-5
   tendency: number; // 1-5

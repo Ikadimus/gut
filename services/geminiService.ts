@@ -2,7 +2,6 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { AIScoringResult } from "../types";
 
 const apiKey = process.env.API_KEY || '';
-const ai = new GoogleGenAI({ apiKey });
 
 export const analyzeIssueWithAI = async (
   title: string,
@@ -14,9 +13,11 @@ export const analyzeIssueWithAI = async (
     return null;
   }
 
+  const ai = new GoogleGenAI({ apiKey });
+
   try {
     const prompt = `
-      Você é um engenheiro sênior especialista em plantas de produção de Biometano e Biogás.
+      Você é um engenheiro sênior especialista em plantas de produção de BIOMETANO e Biogás.
       Analise o seguinte problema relatado na planta e sugira uma pontuação para a Matriz GUT (Gravidade, Urgência, Tendência).
       
       Área da Planta: ${area}
@@ -32,7 +33,7 @@ export const analyzeIssueWithAI = async (
     `;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3-flash-preview",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
