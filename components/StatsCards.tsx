@@ -46,7 +46,7 @@ export const StatsCards: React.FC<StatsCardsProps> = ({ issues }) => {
             <AlertTriangle size={20} />
           </div>
           <div>
-            <p className="text-[10px] text-slate-500 font-black uppercase tracking-[0.2em]">Críticos (Score > 80)</p>
+            <p className="text-[10px] text-slate-500 font-black uppercase tracking-[0.2em]">Críticos (Score &gt; 80)</p>
             <h3 className="text-2xl font-black text-slate-100">{critical}</h3>
           </div>
         </div>
