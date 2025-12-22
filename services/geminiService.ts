@@ -1,35 +1,37 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { AIScoringResult } from "../types";
 
-const apiKey = process.env.API_KEY || '';
-
 export const analyzeIssueWithAI = async (
   title: string,
   description: string,
   area: string
 ): Promise<AIScoringResult | null> => {
+  // Inicialização estritamente dentro da função para capturar a chave de API injetada no ambiente de produção
+  const apiKey = process.env.API_KEY;
   if (!apiKey) {
-    console.error("API Key is missing");
+    console.error("AI_ERROR: API Key não detectada no ambiente de produção.");
     return null;
   }
 
+  // Criação da instância no momento do disparo para evitar estados obsoletos
   const ai = new GoogleGenAI({ apiKey });
 
   try {
     const prompt = `
-      Você é um engenheiro sênior especialista em plantas de produção de BIOMETANO e Biogás.
-      Analise o seguinte problema relatado na planta e sugira uma pontuação para a Matriz GUT (Gravidade, Urgência, Tendência).
-      
-      Área da Planta: ${area}
-      Problema: ${title}
-      Descrição Detalhada: ${description}
+      Você é um Consultor Sênior de Segurança Operacional e Especialista em Upgrading de Biogás (Plantas de Biometano).
+      Sua missão é realizar uma análise técnica de risco baseada na metodologia GUT (Gravidade, Urgência e Tendência).
 
-      Definições para pontuação (1 a 5):
-      Gravidade (G): Impacto na segurança, qualidade do gás (pureza CH4), meio ambiente e ativos.
-      Urgência (U): Pressão do tempo para resolver antes de falha crítica.
-      Tendência (T): Potencial de agravamento do problema com o tempo.
+      DADOS TÉCNICOS:
+      - Subsistema: ${area}
+      - Evento: ${title}
+      - Contexto Detalhado: ${description}
 
-      Retorne APENAS um objeto JSON com os campos: gravity, urgency, tendency (números inteiros de 1-5) e reasoning (uma explicação curta e técnica em português).
+      DIRETRIZES DE PONTUAÇÃO (Escala 1 a 5):
+      - Gravidade (G): Considere o impacto na pureza do gás (CH4), danos a membranas, contaminação de catalisadores ou riscos explosivos.
+      - Urgência (U): Analise o tempo disponível para intervenção antes de uma parada não programada ou violação de normas ANP.
+      - Tendência (T): Se nada for feito, o problema escalará para uma falha catastrófica rapidamente ou é um desvio estável?
+
+      Responda EXCLUSIVAMENTE em formato JSON.
     `;
 
     const response = await ai.models.generateContent({
@@ -40,22 +42,22 @@ export const analyzeIssueWithAI = async (
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            gravity: { type: Type.INTEGER, description: "Score from 1 to 5" },
-            urgency: { type: Type.INTEGER, description: "Score from 1 to 5" },
-            tendency: { type: Type.INTEGER, description: "Score from 1 to 5" },
-            reasoning: { type: Type.STRING, description: "Technical explanation for the scores" },
+            gravity: { type: Type.INTEGER, description: "Peso G (1-5)" },
+            urgency: { type: Type.INTEGER, description: "Peso U (1-5)" },
+            tendency: { type: Type.INTEGER, description: "Peso T (1-5)" },
+            reasoning: { type: Type.STRING, description: "Justificativa técnica concisa para a pontuação" },
           },
           required: ["gravity", "urgency", "tendency", "reasoning"],
         },
       },
     });
 
-    const text = response.text;
-    if (!text) return null;
+    const resultText = response.text;
+    if (!resultText) throw new Error("Resposta da IA vazia.");
 
-    return JSON.parse(text) as AIScoringResult;
+    return JSON.parse(resultText) as AIScoringResult;
   } catch (error) {
-    console.error("Error calling Gemini API:", error);
+    console.error("GENAI_CORE_ERROR:", error);
     return null;
   }
 };

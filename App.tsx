@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { PlusCircle, LayoutDashboard, Settings, Loader2, AlertCircle, Database } from 'lucide-react';
 import { GUTIssue, Status } from './types';
@@ -72,14 +73,10 @@ function App() {
     
     try {
       setLoading(true);
-      // 1. Comando direto ao Supabase
       const success = await issueService.delete(id);
       
       if (success) {
-        // 2. Limpeza do estado local imediata
         setIssues(prev => prev.filter(issue => String(issue.id) !== String(id)));
-        
-        // 3. Reset de interface
         setCurrentIssue(null);
         setView('dashboard');
       }
@@ -171,7 +168,7 @@ function App() {
             <StatsCards issues={issues} />
             {issues.length > 0 ? (
               <>
-                <Charts issues={issues} />
+                <Charts issues={issues} areas={areas} />
                 <GUTTable 
                     issues={issues} 
                     onStatusChange={handleStatusChange} 
@@ -222,9 +219,12 @@ function App() {
       )}
 
       <footer className="bg-slate-950 border-t border-slate-900 py-12">
-        <div className="max-w-7xl mx-auto px-4 text-center">
+        <div className="max-w-7xl mx-auto px-4 text-center space-y-4">
           <p className="text-[10px] font-black text-slate-700 uppercase tracking-[0.8em] italic">
             2025 | BIOMETANO CAIEIRAS | ENGENHARIA DE PROCESSO & MONITORAMENTO
+          </p>
+          <p className="text-[9px] font-bold text-slate-600 uppercase tracking-[0.4em]">
+            Desenvolvido por <a href="mailto:efilho@essencisbiometano.com.br" className="text-slate-400 hover:text-green-500 transition-colors underline decoration-slate-800 underline-offset-4">6580005</a>
           </p>
         </div>
       </footer>
