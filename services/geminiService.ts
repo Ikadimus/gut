@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { AIScoringResult } from "../types";
 
@@ -6,34 +7,34 @@ export const analyzeIssueWithAI = async (
   description: string,
   area: string
 ): Promise<AIScoringResult | null> => {
-  // Inicialização estritamente dentro da função para capturar a chave de API injetada no ambiente de produção
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) {
-    console.error("AI_ERROR: API Key não detectada no ambiente de produção.");
-    return null;
+  // Verificação segura da API Key para evitar ReferenceError: process is not defined
+  let apiKey = "";
+  try {
+    apiKey = process.env.API_KEY || "";
+  } catch (e) {
+    console.error("Ambiente não suporta process.env diretamente.");
   }
 
-  // Criação da instância no momento do disparo para evitar estados obsoletos
-  const ai = new GoogleGenAI({ apiKey });
+  if (!apiKey || apiKey === "undefined") {
+    throw new Error("API_KEY_MISSING: A chave de API não foi detectada no ambiente de produção.");
+  }
 
   try {
+    // Inicialização do SDK dentro da função conforme diretrizes
+    const ai = new GoogleGenAI({ apiKey });
+
     const prompt = `
-      Você é um Consultor Sênior de Segurança Operacional e Especialista em Upgrading de Biogás (Plantas de Biometano).
-      Sua missão é realizar uma análise técnica de risco baseada na metodologia GUT (Gravidade, Urgência e Tendência).
+      Atue como Especialista Sênior em Segurança de Processos de Biometano.
+      Analise tecnicamente e sugira a pontuação GUT (1 a 5) para:
+      
+      EVENTO: ${title}
+      ÁREA: ${area}
+      DESCRIÇÃO: ${description}
 
-      DADOS TÉCNICOS:
-      - Subsistema: ${area}
-      - Evento: ${title}
-      - Contexto Detalhado: ${description}
-
-      DIRETRIZES DE PONTUAÇÃO (Escala 1 a 5):
-      - Gravidade (G): Considere o impacto na pureza do gás (CH4), danos a membranas, contaminação de catalisadores ou riscos explosivos.
-      - Urgência (U): Analise o tempo disponível para intervenção antes de uma parada não programada ou violação de normas ANP.
-      - Tendência (T): Se nada for feito, o problema escalará para uma falha catastrófica rapidamente ou é um desvio estável?
-
-      Responda EXCLUSIVAMENTE em formato JSON.
+      Responda estritamente em JSON com as chaves: gravity, urgency, tendency (números de 1-5) e reasoning (texto curto).
     `;
 
+    // Chamada simplificada para máxima compatibilidade
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: prompt,
@@ -42,22 +43,22 @@ export const analyzeIssueWithAI = async (
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            gravity: { type: Type.INTEGER, description: "Peso G (1-5)" },
-            urgency: { type: Type.INTEGER, description: "Peso U (1-5)" },
-            tendency: { type: Type.INTEGER, description: "Peso T (1-5)" },
-            reasoning: { type: Type.STRING, description: "Justificativa técnica concisa para a pontuação" },
+            gravity: { type: Type.INTEGER },
+            urgency: { type: Type.INTEGER },
+            tendency: { type: Type.INTEGER },
+            reasoning: { type: Type.STRING },
           },
           required: ["gravity", "urgency", "tendency", "reasoning"],
         },
       },
     });
 
-    const resultText = response.text;
-    if (!resultText) throw new Error("Resposta da IA vazia.");
+    const text = response.text;
+    if (!text) throw new Error("A IA não retornou conteúdo.");
 
-    return JSON.parse(resultText) as AIScoringResult;
-  } catch (error) {
-    console.error("GENAI_CORE_ERROR:", error);
-    return null;
+    return JSON.parse(text.trim()) as AIScoringResult;
+  } catch (error: any) {
+    console.error("Erro na análise da IA:", error);
+    throw error;
   }
 };
