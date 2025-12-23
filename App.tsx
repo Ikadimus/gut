@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { PlusCircle, LayoutDashboard, Settings, Loader2, AlertCircle, Database } from 'lucide-react';
+import { PlusCircle, LayoutDashboard, Settings, Loader2, AlertCircle, Database, ShieldCheck, Zap, Key } from 'lucide-react';
 import { GUTIssue, Status } from './types';
 import { StatsCards } from './components/StatsCards';
 import { IssueForm } from './components/IssueForm';
@@ -10,6 +10,17 @@ import { AreaManager } from './components/AreaManager';
 import { DetailsModal } from './components/DetailsModal';
 import { issueService, areaService } from './services/supabase';
 
+// Extensão de tipos para o ambiente AI Studio - Fixed to match pre-defined AIStudio type in the environment
+declare global {
+  interface AIStudio {
+    hasSelectedApiKey: () => Promise<boolean>;
+    openSelectKey: () => Promise<void>;
+  }
+  interface Window {
+    aistudio: AIStudio;
+  }
+}
+
 function App() {
   const [issues, setIssues] = useState<GUTIssue[]>([]);
   const [areas, setAreas] = useState<string[]>([]);
@@ -18,15 +29,47 @@ function App() {
   const [showDetails, setShowDetails] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [aiConnected, setAiConnected] = useState(false);
+  const [showAiSetup, setShowAiSetup] = useState(false);
 
   useEffect(() => {
     fetchInitialData();
+    checkAiStatus();
   }, []);
+
+  const checkAiStatus = async () => {
+    // 1. Verifica se já existe chave injetada (process.env.API_KEY)
+    if (process.env.API_KEY && process.env.API_KEY !== 'undefined') {
+      setAiConnected(true);
+      return;
+    }
+
+    // 2. Se não, verifica se o navegador tem o seletor do AI Studio disponível
+    if (window.aistudio) {
+      const hasKey = await window.aistudio.hasSelectedApiKey();
+      setAiConnected(hasKey);
+      if (!hasKey) {
+        setShowAiSetup(true); // Mostra aviso se não houver chave
+      }
+    }
+  };
+
+  const handleConnectAi = async () => {
+    if (window.aistudio) {
+      try {
+        await window.aistudio.openSelectKey();
+        // Após abrir o seletor, assumimos sucesso conforme instruções de race condition
+        setAiConnected(true);
+        setShowAiSetup(false);
+      } catch (err) {
+        console.error("Erro ao abrir seletor:", err);
+      }
+    }
+  };
 
   const fetchInitialData = async () => {
     try {
       setLoading(true);
-      setError(null);
       const [fetchedIssues, fetchedAreas] = await Promise.all([
         issueService.getAll(),
         areaService.getAll()
@@ -34,7 +77,7 @@ function App() {
       setIssues(fetchedIssues);
       setAreas(fetchedAreas);
     } catch (err: any) {
-      setError(`Erro de Rede: ${err.message || 'Falha na conexão'}`);
+      setError(`Erro: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -51,152 +94,107 @@ function App() {
         setIssues(prev => [created, ...prev]);
       }
       setView('dashboard');
-      setCurrentIssue(null);
     } catch (err: any) {
-      alert(`Falha ao salvar: ${err.message}`);
+      alert(`Falha: ${err.message}`);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleStatusChange = async (id: string, newStatus: Status) => {
-    try {
-      const updated = await issueService.update(id, { status: newStatus });
-      setIssues(prev => prev.map(i => String(i.id) === String(id) ? updated : i));
-    } catch (err) {
-      alert("Erro ao sincronizar status.");
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!id) return;
-    
-    try {
-      setLoading(true);
-      const success = await issueService.delete(id);
-      
-      if (success) {
-        setIssues(prev => prev.filter(issue => String(issue.id) !== String(id)));
-        setCurrentIssue(null);
-        setView('dashboard');
-      }
-    } catch (err: any) {
-      alert(`ERRO DE SISTEMA: ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleUpdateAreas = async (newAreas: string[]) => {
-    await fetchInitialData();
-  };
-
-  const handleEdit = (id: string) => {
-    const issue = issues.find(i => String(i.id) === String(id));
-    if (issue) {
-      setCurrentIssue(issue);
-      setView('form');
-    }
-  };
-
-  const handleOpenDetails = (id: string) => {
-    const issue = issues.find(i => String(i.id) === String(id));
-    if (issue) {
-      setCurrentIssue(issue);
-      setShowDetails(true);
-    }
-  };
-
-  if (loading && issues.length === 0 && !error) {
+  if (loading && issues.length === 0) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-100 p-6">
-        <Loader2 size={48} className="animate-spin text-green-500 mb-6" />
-        <p className="text-slate-500 font-black uppercase tracking-[0.4em] text-[10px] animate-pulse italic">Acessando Nucleo de Dados Biometano...</p>
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <Loader2 size={40} className="animate-spin text-green-500" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-green-500/30 selection:text-green-200">
-      <header className="bg-slate-900/80 backdrop-blur-md border-b border-slate-800 sticky top-0 z-50 shadow-2xl">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-          <div className="flex flex-col items-start cursor-pointer group" onClick={() => setView('dashboard')}>
-            <span className="text-2xl font-black text-white italic tracking-tighter leading-none">BIOMETANO <span className="text-orange-500">Caieiras</span></span>
-            <div className="flex items-center gap-3 mt-1">
-                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-green-500 drop-shadow-[0_0_8px_rgba(34,197,94,0.4)]">Matriz de Risco GUT</span>
-                <span className="h-1 w-1 bg-slate-700 rounded-full"></span>
-                <p className="text-[8px] text-slate-500 font-bold uppercase tracking-widest flex items-center gap-1.5 opacity-80"><Database size={10} /> Database Online</p>
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+      {/* Overlay de Configuração de IA (Apenas se não conectado) */}
+      {showAiSetup && (
+        <div className="fixed inset-0 z-[100] bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-6">
+          <div className="max-w-md w-full bg-slate-900 border border-slate-700 p-8 rounded-3xl text-center shadow-2xl ring-1 ring-white/10 animate-slide-up">
+            <div className="bg-purple-500/10 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6 text-purple-400 border border-purple-500/20">
+              <Zap size={32} className="animate-pulse" />
+            </div>
+            <h2 className="text-xl font-black text-white uppercase tracking-tight mb-2">Ativar IA Analítica</h2>
+            <p className="text-slate-400 text-sm mb-8 leading-relaxed">
+              Para usar o sistema de sugestão GUT automática em produção, você precisa autorizar o uso da sua chave de API do Gemini.
+            </p>
+            <button 
+              onClick={handleConnectAi}
+              className="w-full bg-purple-600 hover:bg-purple-500 text-white font-black py-4 rounded-xl uppercase tracking-widest text-xs flex items-center justify-center gap-3 transition-all shadow-xl shadow-purple-900/40"
+            >
+              <Key size={18} /> Selecionar Chave API
+            </button>
+            <p className="mt-6 text-[10px] text-slate-500 font-bold uppercase tracking-widest italic">
+              Requisito de Segurança: <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="text-purple-400 underline">Faturamento Ativo</a>
+            </p>
+          </div>
+        </div>
+      )}
+
+      <header className="bg-slate-900/80 backdrop-blur-md border-b border-slate-800 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex flex-col cursor-pointer" onClick={() => setView('dashboard')}>
+            <span className="text-2xl font-black text-white italic tracking-tighter">BIOMETANO <span className="text-orange-500">Caieiras</span></span>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-green-500">Matriz GUT</span>
+              {aiConnected ? (
+                <span className="flex items-center gap-1 text-[8px] text-purple-400 bg-purple-900/20 px-1.5 py-0.5 rounded border border-purple-800/40 font-black uppercase">
+                  <Zap size={8} /> IA Online
+                </span>
+              ) : (
+                <button onClick={handleConnectAi} className="text-[8px] text-slate-500 underline font-black uppercase">IA Offline - Clique p/ Ativar</button>
+              )}
             </div>
           </div>
 
-          <div className="flex gap-4 items-center">
+          <div className="flex gap-4">
+             <button onClick={() => setView('areas')} className="text-slate-500 hover:text-white transition-colors p-2"><Settings size={20} /></button>
              <button 
-                onClick={() => setView('areas')}
-                className={`px-4 py-2 rounded-lg font-black text-[11px] uppercase tracking-widest flex items-center gap-2 transition-all border ${view === 'areas' ? 'bg-slate-800 text-white border-slate-600' : 'text-slate-500 border-transparent hover:text-slate-300 hover:bg-slate-800/50'}`}
+                onClick={() => {setCurrentIssue(null); setView('form');}}
+                className="bg-green-600 hover:bg-green-500 text-white px-6 py-2 rounded-lg font-black text-[11px] uppercase tracking-widest transition-all shadow-lg active:scale-95 flex items-center gap-2"
              >
-                <Settings size={18} /> Áreas
+                <PlusCircle size={16} /> Novo Registro
              </button>
-
-             {view === 'dashboard' || view === 'areas' ? (
-                <button 
-                  onClick={() => {setCurrentIssue(null); setView('form');}}
-                  className="bg-green-600 hover:bg-green-500 text-white px-6 py-2.5 rounded-lg font-black text-[11px] uppercase tracking-[0.2em] flex items-center gap-2 transition-all shadow-xl shadow-green-950/40 active:scale-95 border border-green-400/20"
-                >
-                  <PlusCircle size={18} /> Novo Evento
-                </button>
-             ) : (
-                <button 
-                  onClick={() => {setView('dashboard'); setCurrentIssue(null);}}
-                  className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-6 py-2.5 rounded-lg font-black text-[11px] uppercase tracking-[0.2em] flex items-center gap-2 transition-all border border-slate-700 active:scale-95"
-                >
-                  <LayoutDashboard size={18} /> Dashboard
-                </button>
-             )}
           </div>
         </div>
       </header>
 
-      {error && (
-        <div className="bg-red-900/30 p-4 text-center text-[10px] font-black uppercase tracking-[0.4em] border-b border-red-800/40 flex items-center justify-center gap-3 text-red-400 animate-pulse">
-          <AlertCircle size={16} /> Falha de Conexão: Verifique seu Banco de Dados
-        </div>
-      )}
-
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        {view === 'dashboard' && !error && (
-          <div className="animate-fade-in space-y-10">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-10">
+        {view === 'dashboard' && (
+          <div className="space-y-10">
             <StatsCards issues={issues} />
-            {issues.length > 0 ? (
-              <>
-                <Charts issues={issues} areas={areas} />
-                <GUTTable 
-                    issues={issues} 
-                    onStatusChange={handleStatusChange} 
-                    onEdit={handleEdit}
-                    onDetails={handleOpenDetails}
-                />
-              </>
-            ) : (
-              <div className="bg-slate-900/30 border border-dashed border-slate-800 rounded-[2.5rem] p-32 text-center shadow-inner">
-                 <Database size={56} className="text-slate-800 mx-auto mb-8 opacity-40" />
-                 <h2 className="text-xl font-black text-slate-500 uppercase tracking-[0.5em] italic">Base de Dados Vazia</h2>
-                 <p className="text-slate-600 mt-3 text-[10px] font-bold uppercase tracking-widest mb-10">Inicie o monitoramento da planta de biometano</p>
-                 <button 
-                    onClick={() => {setCurrentIssue(null); setView('form');}}
-                    className="bg-green-600 hover:bg-green-500 text-white px-12 py-4 rounded-full font-black uppercase text-xs tracking-[0.3em] transition-all shadow-2xl shadow-green-950/40 active:scale-95"
-                 >
-                    Novo Registro GUT
-                 </button>
-              </div>
-            )}
+            <Charts issues={issues} areas={areas} />
+            <GUTTable 
+                issues={issues} 
+                onStatusChange={async (id, status) => {
+                  const updated = await issueService.update(id, { status });
+                  setIssues(prev => prev.map(i => i.id === id ? updated : i));
+                }}
+                onEdit={(id) => {
+                  const issue = issues.find(i => i.id === id);
+                  if (issue) { setCurrentIssue(issue); setView('form'); }
+                }}
+                onDetails={(id) => {
+                  const issue = issues.find(i => i.id === id);
+                  if (issue) { setCurrentIssue(issue); setShowDetails(true); }
+                }}
+            />
           </div>
         )}
 
         {view === 'form' && (
           <IssueForm 
             onSave={handleSaveIssue} 
-            onCancel={() => {setView('dashboard'); setCurrentIssue(null);}} 
-            onDelete={handleDelete}
+            onCancel={() => setView('dashboard')} 
+            onDelete={async (id) => {
+              await issueService.delete(id);
+              setIssues(prev => prev.filter(i => i.id !== id));
+              setView('dashboard');
+            }}
             areas={areas.length > 0 ? areas : ["Geral"]}
             initialData={currentIssue}
           />
@@ -205,29 +203,15 @@ function App() {
         {view === 'areas' && (
           <AreaManager 
             areas={areas} 
-            onUpdateAreas={handleUpdateAreas} 
+            onUpdateAreas={() => fetchInitialData()} 
             onCancel={() => setView('dashboard')} 
           />
         )}
       </main>
 
       {showDetails && currentIssue && (
-        <DetailsModal 
-          issue={currentIssue} 
-          onClose={() => {setShowDetails(false); setCurrentIssue(null);}} 
-        />
+        <DetailsModal issue={currentIssue} onClose={() => setShowDetails(false)} />
       )}
-
-      <footer className="bg-slate-950 border-t border-slate-900 py-12">
-        <div className="max-w-7xl mx-auto px-4 text-center space-y-4">
-          <p className="text-[10px] font-black text-slate-700 uppercase tracking-[0.8em] italic">
-            2025 | BIOMETANO CAIEIRAS | ENGENHARIA DE PROCESSO & MONITORAMENTO
-          </p>
-          <p className="text-[9px] font-bold text-slate-600 uppercase tracking-[0.4em]">
-            Desenvolvido por <a href="mailto:efilho@essencisbiometano.com.br" className="text-slate-400 hover:text-green-500 transition-colors underline decoration-slate-800 underline-offset-4">6580005</a>
-          </p>
-        </div>
-      </footer>
     </div>
   );
 }
