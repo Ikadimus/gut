@@ -10,14 +10,13 @@ import { AreaManager } from './components/AreaManager';
 import { DetailsModal } from './components/DetailsModal';
 import { issueService, areaService } from './services/supabase';
 
-// Declaração global para o seletor de chaves da plataforma
+// Declaração global segura para o seletor de chaves
 declare global {
   interface AIStudio {
     hasSelectedApiKey: () => Promise<boolean>;
     openSelectKey: () => Promise<void>;
   }
   interface Window {
-    // FIX: Adicionando modificador opcional para coincidir com a declaração global do ambiente e evitar conflitos de modificadores
     aistudio?: AIStudio;
   }
 }
@@ -31,7 +30,6 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [aiConnected, setAiConnected] = useState(false);
-  const [showAiSetup, setShowAiSetup] = useState(false);
 
   useEffect(() => {
     fetchInitialData();
@@ -39,25 +37,22 @@ function App() {
   }, []);
 
   const checkAiStatus = async () => {
-    // Verifica se a chave já está presente no ambiente
+    // 1. Verifica se a chave já está presente no ambiente (padrão para a maioria dos deploys)
     const hasKeyInEnv = !!(process.env.API_KEY && process.env.API_KEY !== 'undefined' && process.env.API_KEY !== '');
     
     if (hasKeyInEnv) {
       setAiConnected(true);
-      setShowAiSetup(false);
       return;
     }
 
-    // Se não houver chave no env, verifica via API do AI Studio
+    // 2. Tenta verificar se o seletor de chaves está disponível (ambientes de preview)
     if (window.aistudio) {
-      const hasKey = await window.aistudio.hasSelectedApiKey();
-      setAiConnected(hasKey);
-      if (!hasKey) {
-        setShowAiSetup(true);
+      try {
+        const hasKey = await window.aistudio.hasSelectedApiKey();
+        setAiConnected(hasKey);
+      } catch (e) {
+        setAiConnected(false);
       }
-    } else {
-      // Em ambientes sem window.aistudio, se não tem API_KEY, precisa de setup
-      setShowAiSetup(true);
     }
   };
 
@@ -65,14 +60,12 @@ function App() {
     if (window.aistudio) {
       try {
         await window.aistudio.openSelectKey();
-        // Após abrir o seletor, assumimos sucesso para liberar a interface
         setAiConnected(true);
-        setShowAiSetup(false);
       } catch (err) {
         console.error("Erro ao abrir seletor de chaves:", err);
       }
     } else {
-      alert("Para ativar a IA em produção, utilize um navegador compatível com o seletor de chaves do AI Studio.");
+      alert("A chave de API deve ser configurada nas variáveis de ambiente do projeto para este navegador.");
     }
   };
 
@@ -120,33 +113,6 @@ function App() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-purple-500/30">
-      {/* Bloqueio de IA: Exibe quando não há chave detectada */}
-      {showAiSetup && (
-        <div className="fixed inset-0 z-[100] bg-slate-950/95 backdrop-blur-xl flex items-center justify-center p-6">
-          <div className="max-w-md w-full bg-slate-900 border border-slate-700/50 p-10 rounded-[2.5rem] text-center shadow-2xl ring-1 ring-white/10 animate-fade-in">
-            <div className="bg-purple-500/10 w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-8 text-purple-400 border border-purple-500/20 shadow-inner">
-              <Zap size={40} className="animate-pulse" />
-            </div>
-            <h2 className="text-2xl font-black text-white uppercase tracking-tight mb-3">Ativação Necessária</h2>
-            <p className="text-slate-400 text-sm mb-10 leading-relaxed font-medium">
-              O módulo de inteligência artificial requer uma chave de API para processar as análises GUT da planta de Biometano.
-            </p>
-            <button 
-              onClick={handleConnectAi}
-              className="w-full bg-purple-600 hover:bg-purple-500 text-white font-black py-5 rounded-2xl uppercase tracking-[0.2em] text-xs flex items-center justify-center gap-3 transition-all shadow-2xl shadow-purple-900/40 active:scale-95"
-            >
-              <Key size={20} /> Vincular Chave API
-            </button>
-            <div className="mt-8 pt-6 border-t border-slate-800">
-               <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest leading-loose">
-                Utilize a chave que você possui no seletor que será aberto.<br/>
-                <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="text-purple-400 hover:text-purple-300 underline underline-offset-4">Verificar Faturamento</a>
-               </p>
-            </div>
-          </div>
-        </div>
-      )}
-
       <header className="bg-slate-900/80 backdrop-blur-md border-b border-slate-800 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex flex-col cursor-pointer group" onClick={() => setView('dashboard')}>
@@ -160,9 +126,9 @@ function App() {
                   <Zap size={8} fill="currentColor" /> IA Ativa
                 </span>
               ) : (
-                <button onClick={handleConnectAi} className="text-[8px] text-slate-500 hover:text-purple-400 font-black uppercase flex items-center gap-1">
-                  <Key size={8} /> Conectar IA
-                </button>
+                <span className="text-[8px] text-slate-500 font-black uppercase tracking-widest">
+                  IA Offline
+                </span>
               )}
             </div>
           </div>
@@ -185,6 +151,12 @@ function App() {
       </header>
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-10">
+        {error && (
+          <div className="bg-red-900/20 border border-red-800 text-red-400 p-4 rounded-xl mb-8 flex items-center gap-3">
+            <Zap size={18} /> {error}
+          </div>
+        )}
+
         {view === 'dashboard' && (
           <div className="space-y-12 animate-fade-in">
             <StatsCards issues={issues} />
