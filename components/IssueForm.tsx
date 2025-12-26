@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { GUTIssue, Status } from '../types';
 import { analyzeIssueWithAI } from '../services/geminiService';
-import { Bot, Save, Loader2, Sparkles, Trash2, X, AlertCircle } from 'lucide-react';
+import { Bot, Save, Loader2, Sparkles, Trash2, X, AlertCircle, Key } from 'lucide-react';
 
 interface IssueFormProps {
   onSave: (issue: Omit<GUTIssue, 'id' | 'createdAt'>, id?: string) => void;
@@ -10,9 +10,19 @@ interface IssueFormProps {
   onDelete?: (id: string) => void;
   areas: string[];
   initialData?: GUTIssue | null;
+  onConnectAI?: () => void;
+  isAIConnected?: boolean;
 }
 
-export const IssueForm: React.FC<IssueFormProps> = ({ onSave, onCancel, onDelete, areas, initialData }) => {
+export const IssueForm: React.FC<IssueFormProps> = ({ 
+  onSave, 
+  onCancel, 
+  onDelete, 
+  areas, 
+  initialData,
+  onConnectAI,
+  isAIConnected
+}) => {
   const [title, setTitle] = useState(initialData?.title || '');
   const [description, setDescription] = useState(initialData?.description || '');
   const [immediateAction, setImmediateAction] = useState(initialData?.immediateAction || '');
@@ -38,6 +48,11 @@ export const IssueForm: React.FC<IssueFormProps> = ({ onSave, onCancel, onDelete
   }, [initialData]);
 
   const handleAISuggestion = async () => {
+    if (!isAIConnected && onConnectAI) {
+      onConnectAI();
+      return;
+    }
+
     if (!title.trim() || !description.trim()) {
       alert("Preencha Título e Descrição para que a IA possa analisar o risco.");
       return;
@@ -55,8 +70,8 @@ export const IssueForm: React.FC<IssueFormProps> = ({ onSave, onCancel, onDelete
         setAiReasoning(result.reasoning);
       }
     } catch (error: any) {
-      if (error.message?.includes("AUTH_REQUIRED")) {
-        setAiError("IA Desconectada. Clique em 'Ativar IA' no topo da página.");
+      if (error.message?.includes("API_KEY_NOT_FOUND") || error.message?.includes("AUTH")) {
+        setAiError("IA Desconectada. Clique em 'Vincular Chave' para ativar.");
       } else {
         setAiError(error.message || "Falha técnica na conexão com a IA.");
       }
@@ -125,15 +140,25 @@ export const IssueForm: React.FC<IssueFormProps> = ({ onSave, onCancel, onDelete
                     <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
                         <Bot size={14} className="text-purple-400"/> IA Core
                     </h4>
-                    <button
-                        type="button"
-                        onClick={handleAISuggestion}
-                        disabled={aiLoading}
-                        className="text-[9px] bg-purple-600 hover:bg-purple-500 text-white px-4 py-1.5 rounded-full flex items-center gap-2 transition-all disabled:opacity-50 font-black uppercase tracking-widest shadow-lg"
-                    >
-                        {aiLoading ? <Loader2 size={12} className="animate-spin"/> : <Sparkles size={12}/>}
-                        {aiLoading ? 'Processando' : 'Avaliar com IA'}
-                    </button>
+                    {!isAIConnected ? (
+                      <button
+                          type="button"
+                          onClick={onConnectAI}
+                          className="text-[9px] bg-slate-700 hover:bg-purple-600 text-white px-4 py-1.5 rounded-full flex items-center gap-2 transition-all font-black uppercase tracking-widest"
+                      >
+                          <Key size={12}/> Vincular Chave
+                      </button>
+                    ) : (
+                      <button
+                          type="button"
+                          onClick={handleAISuggestion}
+                          disabled={aiLoading}
+                          className="text-[9px] bg-purple-600 hover:bg-purple-500 text-white px-4 py-1.5 rounded-full flex items-center gap-2 transition-all disabled:opacity-50 font-black uppercase tracking-widest shadow-lg"
+                      >
+                          {aiLoading ? <Loader2 size={12} className="animate-spin"/> : <Sparkles size={12}/>}
+                          {aiLoading ? 'Processando' : 'Avaliar com IA'}
+                      </button>
+                    )}
                 </div>
                 {aiError && (
                     <div className="bg-red-900/20 text-red-400 text-[10px] p-3 rounded-lg border border-red-800/30 flex items-center gap-2 mb-3">

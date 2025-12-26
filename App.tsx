@@ -37,7 +37,7 @@ function App() {
   }, []);
 
   const checkAiStatus = async () => {
-    // 1. Verifica se a chave já está presente no ambiente (padrão para a maioria dos deploys)
+    // 1. Verifica se a chave já está presente no ambiente
     const hasKeyInEnv = !!(process.env.API_KEY && process.env.API_KEY !== 'undefined' && process.env.API_KEY !== '');
     
     if (hasKeyInEnv) {
@@ -45,7 +45,7 @@ function App() {
       return;
     }
 
-    // 2. Tenta verificar se o seletor de chaves está disponível (ambientes de preview)
+    // 2. Tenta verificar se o seletor de chaves está disponível
     if (window.aistudio) {
       try {
         const hasKey = await window.aistudio.hasSelectedApiKey();
@@ -60,12 +60,16 @@ function App() {
     if (window.aistudio) {
       try {
         await window.aistudio.openSelectKey();
-        setAiConnected(true);
+        // Após abrir o seletor, verificamos novamente o status
+        setTimeout(async () => {
+          const hasKey = await window.aistudio?.hasSelectedApiKey();
+          setAiConnected(!!hasKey);
+        }, 500);
       } catch (err) {
         console.error("Erro ao abrir seletor de chaves:", err);
       }
     } else {
-      alert("A chave de API deve ser configurada nas variáveis de ambiente do projeto para este navegador.");
+      alert("Para ativar a IA, utilize um navegador compatível (Chrome/Edge) ou configure a API_KEY nas variáveis de ambiente.");
     }
   };
 
@@ -126,9 +130,12 @@ function App() {
                   <Zap size={8} fill="currentColor" /> IA Ativa
                 </span>
               ) : (
-                <span className="text-[8px] text-slate-500 font-black uppercase tracking-widest">
-                  IA Offline
-                </span>
+                <button 
+                  onClick={handleConnectAi}
+                  className="flex items-center gap-1 text-[8px] text-slate-500 hover:text-purple-400 bg-slate-800/50 hover:bg-purple-900/20 px-2 py-0.5 rounded border border-slate-700 hover:border-purple-800/40 font-black uppercase tracking-widest transition-all"
+                >
+                  <Key size={8} /> Ativar IA
+                </button>
               )}
             </div>
           </div>
@@ -192,6 +199,8 @@ function App() {
             }}
             areas={areas.length > 0 ? areas : ["Geral"]}
             initialData={currentIssue}
+            onConnectAI={handleConnectAi}
+            isAIConnected={aiConnected}
           />
         )}
 
