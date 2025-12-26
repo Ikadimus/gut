@@ -1,8 +1,9 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { GUTIssue, Status } from '../types';
 import { analyzeIssueWithAI } from '../services/geminiService';
-import { Bot, Save, Loader2, Sparkles, Trash2, X, AlertCircle, Key } from 'lucide-react';
+import { uploadFileToDrive } from '../services/googleDriveService';
+import { Bot, Save, Loader2, Sparkles, Trash2, X, AlertCircle, Key, Paperclip, FileText, CheckCircle2, Zap } from 'lucide-react';
 
 interface IssueFormProps {
   onSave: (issue: Omit<GUTIssue, 'id' | 'createdAt'>, id?: string) => void;
@@ -30,9 +31,17 @@ export const IssueForm: React.FC<IssueFormProps> = ({
   const [gravity, setGravity] = useState<number>(initialData?.gravity || 1);
   const [urgency, setUrgency] = useState<number>(initialData?.urgency || 1);
   const [tendency, setTendency] = useState<number>(initialData?.tendency || 1);
+  
+  // Estados da IA
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiReasoning, setAiReasoning] = useState<string | null>(initialData?.aiSuggestion || null);
+
+  // Estados de Anexo
+  const [attachmentUrl, setAttachmentUrl] = useState<string | undefined>(initialData?.attachmentUrl);
+  const [attachmentName, setAttachmentName] = useState<string | undefined>(initialData?.attachmentName);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (initialData) {
@@ -44,8 +53,32 @@ export const IssueForm: React.FC<IssueFormProps> = ({
       setUrgency(initialData.urgency);
       setTendency(initialData.tendency);
       setAiReasoning(initialData.aiSuggestion || null);
+      setAttachmentUrl(initialData.attachmentUrl);
+      setAttachmentName(initialData.attachmentName);
     }
   }, [initialData]);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setUploading(true);
+      const result = await uploadFileToDrive(file);
+      setAttachmentUrl(result.url);
+      setAttachmentName(result.name);
+    } catch (err: any) {
+      alert(err.message || "Erro ao anexar arquivo.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const removeAttachment = () => {
+    setAttachmentUrl(undefined);
+    setAttachmentName(undefined);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
   const handleAISuggestion = async () => {
     if (!isAIConnected && onConnectAI) {
@@ -92,7 +125,9 @@ export const IssueForm: React.FC<IssueFormProps> = ({
       tendency,
       score: gravity * urgency * tendency,
       status: initialData?.status || Status.OPEN,
-      aiSuggestion: aiReasoning || undefined
+      aiSuggestion: aiReasoning || undefined,
+      attachmentUrl,
+      attachmentName
     }, initialData?.id);
   };
 
@@ -132,7 +167,54 @@ export const IssueForm: React.FC<IssueFormProps> = ({
 
             <div>
               <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Relato Técnico</label>
-              <textarea required rows={4} value={description} onChange={(e) => setDescription(e.target.value)} className="w-full rounded-lg bg-slate-900 border-slate-700 text-slate-100 p-3 border outline-none text-sm" placeholder="Descreva os sintomas operacionais observados..." />
+              <textarea required rows={3} value={description} onChange={(e) => setDescription(e.target.value)} className="w-full rounded-lg bg-slate-900 border-slate-700 text-slate-100 p-3 border outline-none text-sm" placeholder="Descreva os sintomas operacionais observados..." />
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 flex items-center gap-2">
+                <Zap size={14} className="text-amber-400" /> Ação Imediata Recomendada
+              </label>
+              <textarea rows={2} value={immediateAction} onChange={(e) => setImmediateAction(e.target.value)} className="w-full rounded-lg bg-slate-900 border-slate-700 text-slate-100 p-3 border outline-none text-sm" placeholder="O que deve ser feito agora para conter o risco?" />
+            </div>
+
+            {/* Seção de Anexos */}
+            <div className="bg-slate-900/60 p-4 rounded-xl border border-slate-700/50">
+               <label className="block text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
+                 <Paperclip size={14} /> Evidências (Google Drive)
+               </label>
+               
+               {attachmentUrl ? (
+                 <div className="flex items-center justify-between bg-green-900/20 border border-green-800/30 p-3 rounded-lg">
+                    <div className="flex items-center gap-3 overflow-hidden">
+                      <FileText size={18} className="text-green-500 shrink-0" />
+                      <span className="text-xs text-green-100 truncate font-medium">{attachmentName}</span>
+                    </div>
+                    <button type="button" onClick={removeAttachment} className="p-1.5 text-red-400 hover:bg-red-900/30 rounded transition-colors">
+                      <Trash2 size={16} />
+                    </button>
+                 </div>
+               ) : (
+                 <div className="relative group">
+                    <input 
+                      type="file" 
+                      ref={fileInputRef}
+                      onChange={handleFileChange} 
+                      disabled={uploading}
+                      className="hidden" 
+                    />
+                    <button 
+                      type="button" 
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploading}
+                      className="w-full py-3 border-2 border-dashed border-slate-700 rounded-xl flex flex-col items-center justify-center gap-2 text-slate-500 group-hover:border-slate-500 group-hover:text-slate-300 transition-all active:scale-[0.98]"
+                    >
+                      {uploading ? <Loader2 size={24} className="animate-spin text-blue-500" /> : <Paperclip size={24} />}
+                      <span className="text-[11px] font-black uppercase tracking-widest">
+                        {uploading ? 'Fazendo Upload...' : 'Selecionar Documento'}
+                      </span>
+                    </button>
+                 </div>
+               )}
             </div>
 
             <div className="bg-slate-900/40 p-5 rounded-xl border border-slate-700/50">
@@ -207,9 +289,18 @@ export const IssueForm: React.FC<IssueFormProps> = ({
           </div>
         </div>
 
-        <div className="flex justify-end gap-4 pt-8 border-t border-slate-700">
+        <div className="flex justify-end items-center gap-4 pt-8 border-t border-slate-700">
+            {initialData && onDelete && (
+              <button 
+                type="button" 
+                onClick={() => onDelete(initialData.id)} 
+                className="px-6 py-3 text-red-400 bg-red-950/20 border border-red-900/50 rounded-lg hover:bg-red-900/40 font-black uppercase text-[11px] tracking-[0.2em] flex items-center gap-2 transition-all mr-auto"
+              >
+                <Trash2 size={18} /> Excluir Registro
+              </button>
+            )}
             <button type="button" onClick={onCancel} className="px-8 py-3 text-slate-400 bg-slate-700/30 border border-slate-600 rounded-lg hover:bg-slate-700 font-black uppercase text-[11px] tracking-[0.2em]">Cancelar</button>
-            <button type="submit" className="px-12 py-3 text-white bg-green-600 rounded-lg hover:bg-green-500 font-black uppercase text-[11px] tracking-[0.2em] flex items-center gap-3 shadow-2xl transition-all active:scale-95">
+            <button type="submit" disabled={uploading} className="px-12 py-3 text-white bg-green-600 rounded-lg hover:bg-green-500 font-black uppercase text-[11px] tracking-[0.2em] flex items-center gap-3 shadow-2xl transition-all active:scale-95 disabled:opacity-50">
                 <Save size={20} /> Salvar Registro
             </button>
         </div>

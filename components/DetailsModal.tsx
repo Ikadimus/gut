@@ -1,6 +1,7 @@
+
 import React from 'react';
 import { GUTIssue, Status } from '../types';
-import { X, Calendar, MapPin, Activity, AlertCircle, Bot, Zap, Info } from 'lucide-react';
+import { X, Calendar, MapPin, Activity, AlertCircle, Bot, Zap, Info, ExternalLink, FileText } from 'lucide-react';
 import { GUT_SCALES } from '../constants';
 
 interface DetailsModalProps {
@@ -18,7 +19,6 @@ export const DetailsModal: React.FC<DetailsModalProps> = ({ issue, onClose }) =>
     }
   };
 
-  // Função para pegar o texto explicativo (o que está entre parênteses)
   const getFullLabel = (type: 'gravity' | 'urgency' | 'tendency', value: number) => {
     return GUT_SCALES[type].find(s => s.value === value)?.label || value;
   };
@@ -88,7 +88,7 @@ export const DetailsModal: React.FC<DetailsModalProps> = ({ issue, onClose }) =>
         <div className="p-6 space-y-6 max-h-[60vh] overflow-y-auto custom-scrollbar bg-slate-900/50">
           
           {/* GUT Values Detailed */}
-          <div className="grid grid-cols-1 gap-2">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
             <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
               <span className="text-[9px] uppercase text-slate-500 font-black tracking-widest block mb-1">Gravidade</span>
               <p className="text-slate-200 text-sm font-bold">{getFullLabel('gravity', issue.gravity)}</p>
@@ -141,6 +141,32 @@ export const DetailsModal: React.FC<DetailsModalProps> = ({ issue, onClose }) =>
               <div className="text-amber-100/90 text-sm leading-relaxed bg-amber-950/20 p-4 rounded-xl border border-amber-900/30 font-bold italic">
                 {issue.immediateAction}
               </div>
+            </div>
+          )}
+
+          {/* Anexo Google Drive */}
+          {issue.attachmentUrl && (
+            <div className="space-y-2">
+               <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                <FileText size={14} className="text-green-400" /> Documentação de Evidência
+              </h4>
+              <a 
+                href={issue.attachmentUrl} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex items-center justify-between bg-slate-800 hover:bg-slate-700 p-4 rounded-xl border border-slate-700 transition-all group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-green-500/10 rounded-lg border border-green-500/20 text-green-500">
+                    <FileText size={18} />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-200 font-bold truncate max-w-[250px]">{issue.attachmentName || 'Visualizar Anexo'}</p>
+                    <p className="text-[10px] text-slate-500 font-medium">Google Drive Asset</p>
+                  </div>
+                </div>
+                <ExternalLink size={16} className="text-slate-500 group-hover:text-white transition-colors" />
+              </a>
             </div>
           )}
 

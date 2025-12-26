@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 import { GUTIssue, Status } from '../types';
 
@@ -5,6 +6,14 @@ const supabaseUrl = 'https://ffzwavnqpeuqqidotsyp.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmendhdm5xcGV1cXFpZG90c3lwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE2NDA4NjMsImV4cCI6MjA3NzIxNjg2M30.r5-ONF9TldNq0mstFh47jwdklEyx6v8dWErRPRQ5__Y';
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+/**
+ * IMPORTANTE: Certifique-se de que as colunas abaixo existem na sua tabela 'issues':
+ * attachment_url (text)
+ * attachment_name (text)
+ * immediate_action (text)
+ * ai_suggestion (text)
+ */
 
 export const issueService = {
   async getAll() {
@@ -18,9 +27,11 @@ export const issueService = {
   },
 
   async create(issue: Omit<GUTIssue, 'id' | 'createdAt'>) {
+    const payload = this.mapToDB(issue);
+    
     const { data, error } = await supabase
       .from('issues')
-      .insert([this.mapToDB(issue)])
+      .insert([payload])
       .select()
       .single();
     
@@ -29,14 +40,11 @@ export const issueService = {
   },
 
   async update(id: string, updates: Partial<GUTIssue>) {
-    const dbUpdates = this.mapToDB(updates);
-    const filteredUpdates = Object.fromEntries(
-      Object.entries(dbUpdates).filter(([_, v]) => v !== undefined)
-    );
+    const payload = this.mapToDB(updates);
 
     const { data, error } = await supabase
       .from('issues')
-      .update(filteredUpdates)
+      .update(payload)
       .eq('id', id)
       .select()
       .single();
@@ -61,34 +69,42 @@ export const issueService = {
   },
 
   mapToDB(issue: any) {
-    return {
-      title: issue.title,
-      description: issue.description,
-      immediate_action: issue.immediateAction,
-      area: issue.area,
-      gravity: issue.gravity,
-      urgency: issue.urgency,
-      tendency: issue.tendency,
-      score: issue.score,
-      status: issue.status,
-      ai_suggestion: issue.aiSuggestion
-    };
+    // Criamos um objeto apenas com as chaves que possuem valores definidos
+    // Isso evita o erro de "coluna não encontrada" se o campo estiver vazio e a coluna não existir no DB
+    const dbObj: any = {};
+    
+    if (issue.title !== undefined) dbObj.title = issue.title;
+    if (issue.description !== undefined) dbObj.description = issue.description;
+    if (issue.immediateAction !== undefined) dbObj.immediate_action = issue.immediateAction;
+    if (issue.area !== undefined) dbObj.area = issue.area;
+    if (issue.gravity !== undefined) dbObj.gravity = issue.gravity;
+    if (issue.urgency !== undefined) dbObj.urgency = issue.urgency;
+    if (issue.tendency !== undefined) dbObj.tendency = issue.tendency;
+    if (issue.score !== undefined) dbObj.score = issue.score;
+    if (issue.status !== undefined) dbObj.status = issue.status;
+    if (issue.aiSuggestion !== undefined) dbObj.ai_suggestion = issue.aiSuggestion;
+    if (issue.attachmentUrl !== undefined) dbObj.attachment_url = issue.attachmentUrl;
+    if (issue.attachmentName !== undefined) dbObj.attachment_name = issue.attachmentName;
+
+    return dbObj;
   },
 
   mapFromDB(dbIssue: any): GUTIssue {
     return {
       id: String(dbIssue.id),
-      title: dbIssue.title,
-      description: dbIssue.description,
-      immediateAction: dbIssue.immediate_action,
-      area: dbIssue.area,
-      gravity: dbIssue.gravity,
-      urgency: dbIssue.urgency,
-      tendency: dbIssue.tendency,
-      score: dbIssue.score,
-      status: dbIssue.status as Status,
+      title: dbIssue.title || '',
+      description: dbIssue.description || '',
+      immediateAction: dbIssue.immediate_action || '',
+      area: dbIssue.area || '',
+      gravity: dbIssue.gravity || 1,
+      urgency: dbIssue.urgency || 1,
+      tendency: dbIssue.tendency || 1,
+      score: dbIssue.score || 1,
+      status: (dbIssue.status as Status) || Status.OPEN,
       createdAt: dbIssue.created_at || new Date().toISOString(),
-      aiSuggestion: dbIssue.ai_suggestion
+      aiSuggestion: dbIssue.ai_suggestion,
+      attachmentUrl: dbIssue.attachment_url,
+      attachmentName: dbIssue.attachment_name
     };
   }
 };

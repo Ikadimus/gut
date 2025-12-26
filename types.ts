@@ -1,3 +1,4 @@
+
 export enum PlantArea {
   PRE_TREATMENT = 'Pré-tratamento (Desumidificação/Partículas)',
   DESULFURIZATION = 'Dessulfurização (H2S Removal)',
@@ -20,7 +21,7 @@ export interface GUTIssue {
   id: string;
   title: string;
   description: string;
-  immediateAction?: string; // New field added
+  immediateAction?: string;
   area: string;
   gravity: number; // 1-5
   urgency: number; // 1-5
@@ -29,6 +30,8 @@ export interface GUTIssue {
   status: Status;
   createdAt: string;
   aiSuggestion?: string;
+  attachmentUrl?: string;
+  attachmentName?: string;
 }
 
 export interface AIScoringResult {

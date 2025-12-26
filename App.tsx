@@ -10,7 +10,7 @@ import { AreaManager } from './components/AreaManager';
 import { DetailsModal } from './components/DetailsModal';
 import { issueService, areaService } from './services/supabase';
 
-// Declaração global segura para o seletor de chaves
+// Declaração global segura para o seletor de chaves e SDK Google
 declare global {
   interface AIStudio {
     hasSelectedApiKey: () => Promise<boolean>;
@@ -18,6 +18,8 @@ declare global {
   }
   interface Window {
     aistudio?: AIStudio;
+    // Fix: Unified global declaration of google property on Window to ensure identical modifiers (making it optional to match other files)
+    google?: any;
   }
 }
 
@@ -41,8 +43,8 @@ function App() {
   }, []);
 
   const checkAiStatus = async () => {
-    // Verifica se a chave está presente em GEMINI_API_KEY (Vercel) ou API_KEY (Preview)
-    const envKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+    // Correctly checking process.env.API_KEY exclusively as per guidelines
+    const envKey = process.env.API_KEY;
     const hasKeyInEnv = !!(envKey && envKey !== 'undefined' && envKey !== '');
 
     if (hasKeyInEnv) {
@@ -70,7 +72,7 @@ function App() {
         console.error("Erro ao abrir seletor de chaves:", err);
       }
     } else {
-      alert("Para cadastrar a chave manualmente, use o Chrome/Edge ou defina a variável GEMINI_API_KEY nas configurações do seu ambiente.");
+      alert("Para cadastrar a chave manualmente, use o Chrome/Edge ou defina a variável API_KEY nas configurações do seu ambiente.");
     }
   };
 

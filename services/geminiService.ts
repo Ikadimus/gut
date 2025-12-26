@@ -7,16 +7,16 @@ export const analyzeIssueWithAI = async (
   description: string,
   area: string
 ): Promise<AIScoringResult | null> => {
-  // Prioriza GEMINI_API_KEY (Vercel) e aceita API_KEY como fallback
-  const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+  // Use direct process.env.API_KEY initialization as per guidelines
+  const apiKey = process.env.API_KEY;
 
   if (!apiKey || apiKey === "undefined" || apiKey === "") {
     throw new Error("API_KEY_NOT_FOUND: Chave de API não configurada. Use o botão 'ATIVAR IA' no topo.");
   }
 
   try {
-    // Inicializa o cliente com a chave configurada
-    const ai = new GoogleGenAI({ apiKey });
+    // Inicializa o cliente com a chave configurada seguindo as diretrizes do SDK: new GoogleGenAI({ apiKey: process.env.API_KEY })
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
 
     const prompt = `
       Você é um Engenheiro Sênior de Segurança de Processos em uma Usina de Purificação de Biometano.
@@ -37,7 +37,7 @@ export const analyzeIssueWithAI = async (
 
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: [{ parts: [{ text: prompt }] }],
+      contents: prompt,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -53,6 +53,7 @@ export const analyzeIssueWithAI = async (
       },
     });
 
+    // Directly access the .text property from GenerateContentResponse as per guidelines (not a method)
     const text = response.text;
     if (!text) throw new Error("A IA retornou uma resposta vazia.");
 
