@@ -7,7 +7,7 @@ export const analyzeIssueWithAI = async (
   description: string,
   area: string
 ): Promise<AIScoringResult | null> => {
-  const apiKey = process.env.API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
 
   if (!apiKey || apiKey === "undefined" || apiKey === "") {
     throw new Error("API_KEY_NOT_FOUND: Chave de API não configurada no ambiente. Verifique as configurações do projeto.");
