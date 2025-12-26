@@ -34,18 +34,22 @@ function App() {
   useEffect(() => {
     fetchInitialData();
     checkAiStatus();
+    
+    // Polling opcional para verificar se a chave foi selecionada no diálogo
+    const interval = setInterval(checkAiStatus, 2000);
+    return () => clearInterval(interval);
   }, []);
 
   const checkAiStatus = async () => {
-    // 1. Verifica se a chave já está presente no ambiente
-    const hasKeyInEnv = !!(process.env.API_KEY && process.env.API_KEY !== 'undefined' && process.env.API_KEY !== '');
-    
+    // Verifica se a chave está presente em GEMINI_API_KEY (Vercel) ou API_KEY (Preview)
+    const envKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+    const hasKeyInEnv = !!(envKey && envKey !== 'undefined' && envKey !== '');
+
     if (hasKeyInEnv) {
       setAiConnected(true);
       return;
     }
 
-    // 2. Tenta verificar se o seletor de chaves está disponível
     if (window.aistudio) {
       try {
         const hasKey = await window.aistudio.hasSelectedApiKey();
@@ -60,16 +64,13 @@ function App() {
     if (window.aistudio) {
       try {
         await window.aistudio.openSelectKey();
-        // Após abrir o seletor, verificamos novamente o status
-        setTimeout(async () => {
-          const hasKey = await window.aistudio?.hasSelectedApiKey();
-          setAiConnected(!!hasKey);
-        }, 500);
+        // Assume sucesso imediato para melhorar UX, o polling atualizará o estado real
+        setAiConnected(true);
       } catch (err) {
         console.error("Erro ao abrir seletor de chaves:", err);
       }
     } else {
-      alert("Para ativar a IA, utilize um navegador compatível (Chrome/Edge) ou configure a API_KEY nas variáveis de ambiente.");
+      alert("Para cadastrar a chave manualmente, use o Chrome/Edge ou defina a variável GEMINI_API_KEY nas configurações do seu ambiente.");
     }
   };
 
@@ -123,18 +124,18 @@ function App() {
             <span className="text-2xl font-black text-white italic tracking-tighter group-hover:text-green-500 transition-colors">
               BIOMETANO <span className="text-orange-500">Caieiras</span>
             </span>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3 mt-1">
               <span className="text-[10px] font-black uppercase tracking-[0.2em] text-green-500">Engenharia de Risco</span>
               {aiConnected ? (
-                <span className="flex items-center gap-1 text-[8px] text-purple-400 bg-purple-900/20 px-2 py-0.5 rounded border border-purple-800/40 font-black uppercase tracking-widest">
-                  <Zap size={8} fill="currentColor" /> IA Ativa
+                <span className="flex items-center gap-1.5 text-[9px] text-purple-400 bg-purple-900/30 px-3 py-1 rounded-full border border-purple-800/50 font-black uppercase tracking-widest animate-pulse">
+                  <Zap size={10} fill="currentColor" /> IA Ativa
                 </span>
               ) : (
                 <button 
                   onClick={handleConnectAi}
-                  className="flex items-center gap-1 text-[8px] text-slate-500 hover:text-purple-400 bg-slate-800/50 hover:bg-purple-900/20 px-2 py-0.5 rounded border border-slate-700 hover:border-purple-800/40 font-black uppercase tracking-widest transition-all"
+                  className="flex items-center gap-2 text-[10px] text-white bg-purple-600 hover:bg-purple-500 px-4 py-1.5 rounded-full border border-purple-400 font-black uppercase tracking-widest transition-all shadow-lg shadow-purple-900/20 active:scale-95"
                 >
-                  <Key size={8} /> Ativar IA
+                  <Key size={12} /> Ativar IA
                 </button>
               )}
             </div>
@@ -144,6 +145,7 @@ function App() {
              <button 
                 onClick={() => setView('areas')} 
                 className={`p-2 rounded-lg transition-all ${view === 'areas' ? 'text-green-500 bg-green-500/10' : 'text-slate-500 hover:text-white hover:bg-slate-800'}`}
+                title="Configurações"
              >
                 <Settings size={22} />
              </button>

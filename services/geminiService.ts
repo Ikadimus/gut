@@ -7,13 +7,15 @@ export const analyzeIssueWithAI = async (
   description: string,
   area: string
 ): Promise<AIScoringResult | null> => {
-  const apiKey = process.env.API_KEY;
+  // Ajustado para GEMINI_API_KEY conforme sua configuração no Vercel
+  const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
 
   if (!apiKey || apiKey === "undefined" || apiKey === "") {
-    throw new Error("API_KEY_NOT_FOUND: Chave de API não configurada no ambiente. Verifique as configurações do projeto.");
+    throw new Error("API_KEY_NOT_FOUND: Chave de API não configurada. Use o botão 'ATIVAR IA' no topo.");
   }
 
   try {
+    // Criar nova instância para garantir o uso da chave mais recente
     const ai = new GoogleGenAI({ apiKey });
 
     const prompt = `
@@ -29,7 +31,7 @@ export const analyzeIssueWithAI = async (
     `;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3-pro-preview",
+      model: "gemini-1.5-flash",
       contents: [{ parts: [{ text: prompt }] }],
       config: {
         responseMimeType: "application/json",
