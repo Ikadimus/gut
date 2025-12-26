@@ -7,33 +7,38 @@ export const analyzeIssueWithAI = async (
   description: string,
   area: string
 ): Promise<AIScoringResult | null> => {
-  // O SDK da Gemini injeta automaticamente a chave selecionada no process.env.API_KEY
+  // A chave API deve ser obtida exclusivamente de process.env.API_KEY
+  // Em produção, o seletor do AI Studio injeta a chave aqui automaticamente após a escolha do usuário.
   const apiKey = process.env.API_KEY;
 
   if (!apiKey || apiKey === "undefined" || apiKey === "") {
-    throw new Error("API_KEY_NOT_FOUND: Por favor, clique em 'Selecionar Chave API' para autorizar a IA.");
+    throw new Error("AUTH_REQUIRED: Clique no botão 'Vincular Chave API' ou no ícone de conexão no topo para autorizar a IA.");
   }
 
   try {
-    // Sempre instanciar um novo cliente antes da chamada para garantir a chave mais atual
+    // Instanciamos o cliente no momento da chamada para garantir o uso da chave mais recente
     const ai = new GoogleGenAI({ apiKey });
 
     const prompt = `
-      Sua função é atuar como Analista Sênior de Riscos para uma Usina de Purificação de Biometano.
-      Avalie o seguinte evento operacional e forneça a pontuação GUT (1 a 5).
+      Você é um Engenheiro Sênior de Segurança de Processos em uma Usina de Purificação de Biometano.
+      Sua tarefa é analisar o evento operacional abaixo e sugerir pontuações para a Matriz GUT (Gravidade, Urgência e Tendência).
 
-      DADOS DO EVENTO:
+      DADOS DA OCORRÊNCIA:
       - Título: ${title}
-      - Área da Planta: ${area}
-      - Descrição Técnica: ${description}
+      - Subsistema/Área: ${area}
+      - Descrição do Evento: ${description}
 
-      REGRAS DE RESPOSTA:
-      - Retorne APENAS um objeto JSON.
-      - Campos: gravity, urgency, tendency (números 1-5).
-      - Field 'reasoning': Uma breve explicação técnica (máx 150 caracteres).
+      CRITÉRIOS DE AVALIAÇÃO (Escala 1 a 5):
+      - Gravity (G): Impacto no processo, segurança e meio ambiente.
+      - Urgency (U): Prazo necessário para intervir.
+      - Tendency (T): Probabilidade de agravamento se nada for feito.
+
+      REQUISITOS DE RESPOSTA:
+      - Retorne estritamente um JSON.
+      - Campos: gravity (inteiro), urgency (inteiro), tendency (inteiro), reasoning (texto explicativo técnico de até 150 caracteres).
     `;
 
-    // Usamos o gemini-3-pro-preview para tarefas de raciocínio técnico complexo
+    // Utilizamos o gemini-3-pro-preview para análises técnicas que exigem alto raciocínio
     const response = await ai.models.generateContent({
       model: "gemini-3-pro-preview",
       contents: [{ parts: [{ text: prompt }] }],
@@ -42,28 +47,40 @@ export const analyzeIssueWithAI = async (
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            gravity: { type: Type.INTEGER },
-            urgency: { type: Type.INTEGER },
-            tendency: { type: Type.INTEGER },
-            reasoning: { type: Type.STRING },
+            gravity: { 
+              type: Type.INTEGER,
+              description: "Nota de 1 a 5 para Gravidade"
+            },
+            urgency: { 
+              type: Type.INTEGER,
+              description: "Nota de 1 a 5 para Urgência"
+            },
+            tendency: { 
+              type: Type.INTEGER,
+              description: "Nota de 1 a 5 para Tendência"
+            },
+            reasoning: { 
+              type: Type.STRING,
+              description: "Breve parecer técnico justificando as notas"
+            },
           },
           required: ["gravity", "urgency", "tendency", "reasoning"],
         },
       },
     });
 
-    const resultText = response.text;
-    if (!resultText) {
-      throw new Error("A IA não conseguiu gerar uma análise válida.");
+    const text = response.text;
+    if (!text) {
+      throw new Error("Falha na resposta: A IA não gerou conteúdo.");
     }
 
-    return JSON.parse(resultText) as AIScoringResult;
+    return JSON.parse(text.trim()) as AIScoringResult;
   } catch (error: any) {
-    console.error("Erro Crítico Gemini:", error);
+    console.error("Gemini Error:", error);
     
-    // Tratamento específico para entidade não encontrada (chave inválida ou projeto incorreto)
-    if (error.message?.includes("Requested entity was not found")) {
-      throw new Error("CHAVE_INVALIDA: A chave selecionada não possui acesso a este modelo ou projeto. Tente novamente.");
+    // Tratamento para chave inválida ou erro de permissão
+    if (error.message?.includes("Requested entity was not found") || error.message?.includes("API key not valid")) {
+      throw new Error("CHAVE_INVALIDA: A chave de API selecionada é inválida ou não possui permissão para este modelo. Por favor, tente vincular novamente.");
     }
     
     throw error;

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { PlusCircle, LayoutDashboard, Settings, Loader2, AlertCircle, Database, ShieldCheck, Zap, Key } from 'lucide-react';
+import { PlusCircle, LayoutDashboard, Settings, Loader2, Database, ShieldCheck, Zap, Key } from 'lucide-react';
 import { GUTIssue, Status } from './types';
 import { StatsCards } from './components/StatsCards';
 import { IssueForm } from './components/IssueForm';
@@ -10,14 +10,15 @@ import { AreaManager } from './components/AreaManager';
 import { DetailsModal } from './components/DetailsModal';
 import { issueService, areaService } from './services/supabase';
 
-// Extensão de tipos para o ambiente AI Studio - Fixed to match pre-defined AIStudio type in the environment
+// Declaração global para o seletor de chaves da plataforma
 declare global {
   interface AIStudio {
     hasSelectedApiKey: () => Promise<boolean>;
     openSelectKey: () => Promise<void>;
   }
   interface Window {
-    aistudio: AIStudio;
+    // FIX: Adicionando modificador opcional para coincidir com a declaração global do ambiente e evitar conflitos de modificadores
+    aistudio?: AIStudio;
   }
 }
 
@@ -38,19 +39,25 @@ function App() {
   }, []);
 
   const checkAiStatus = async () => {
-    // 1. Verifica se já existe chave injetada (process.env.API_KEY)
-    if (process.env.API_KEY && process.env.API_KEY !== 'undefined') {
+    // Verifica se a chave já está presente no ambiente
+    const hasKeyInEnv = !!(process.env.API_KEY && process.env.API_KEY !== 'undefined' && process.env.API_KEY !== '');
+    
+    if (hasKeyInEnv) {
       setAiConnected(true);
+      setShowAiSetup(false);
       return;
     }
 
-    // 2. Se não, verifica se o navegador tem o seletor do AI Studio disponível
+    // Se não houver chave no env, verifica via API do AI Studio
     if (window.aistudio) {
       const hasKey = await window.aistudio.hasSelectedApiKey();
       setAiConnected(hasKey);
       if (!hasKey) {
-        setShowAiSetup(true); // Mostra aviso se não houver chave
+        setShowAiSetup(true);
       }
+    } else {
+      // Em ambientes sem window.aistudio, se não tem API_KEY, precisa de setup
+      setShowAiSetup(true);
     }
   };
 
@@ -58,12 +65,14 @@ function App() {
     if (window.aistudio) {
       try {
         await window.aistudio.openSelectKey();
-        // Após abrir o seletor, assumimos sucesso conforme instruções de race condition
+        // Após abrir o seletor, assumimos sucesso para liberar a interface
         setAiConnected(true);
         setShowAiSetup(false);
       } catch (err) {
-        console.error("Erro ao abrir seletor:", err);
+        console.error("Erro ao abrir seletor de chaves:", err);
       }
+    } else {
+      alert("Para ativar a IA em produção, utilize um navegador compatível com o seletor de chaves do AI Studio.");
     }
   };
 
@@ -77,7 +86,7 @@ function App() {
       setIssues(fetchedIssues);
       setAreas(fetchedAreas);
     } catch (err: any) {
-      setError(`Erro: ${err.message}`);
+      setError(`Erro de conexão: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -95,7 +104,7 @@ function App() {
       }
       setView('dashboard');
     } catch (err: any) {
-      alert(`Falha: ${err.message}`);
+      alert(`Falha ao salvar: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -110,54 +119,66 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
-      {/* Overlay de Configuração de IA (Apenas se não conectado) */}
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-purple-500/30">
+      {/* Bloqueio de IA: Exibe quando não há chave detectada */}
       {showAiSetup && (
-        <div className="fixed inset-0 z-[100] bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-6">
-          <div className="max-w-md w-full bg-slate-900 border border-slate-700 p-8 rounded-3xl text-center shadow-2xl ring-1 ring-white/10 animate-slide-up">
-            <div className="bg-purple-500/10 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6 text-purple-400 border border-purple-500/20">
-              <Zap size={32} className="animate-pulse" />
+        <div className="fixed inset-0 z-[100] bg-slate-950/95 backdrop-blur-xl flex items-center justify-center p-6">
+          <div className="max-w-md w-full bg-slate-900 border border-slate-700/50 p-10 rounded-[2.5rem] text-center shadow-2xl ring-1 ring-white/10 animate-fade-in">
+            <div className="bg-purple-500/10 w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-8 text-purple-400 border border-purple-500/20 shadow-inner">
+              <Zap size={40} className="animate-pulse" />
             </div>
-            <h2 className="text-xl font-black text-white uppercase tracking-tight mb-2">Ativar IA Analítica</h2>
-            <p className="text-slate-400 text-sm mb-8 leading-relaxed">
-              Para usar o sistema de sugestão GUT automática em produção, você precisa autorizar o uso da sua chave de API do Gemini.
+            <h2 className="text-2xl font-black text-white uppercase tracking-tight mb-3">Ativação Necessária</h2>
+            <p className="text-slate-400 text-sm mb-10 leading-relaxed font-medium">
+              O módulo de inteligência artificial requer uma chave de API para processar as análises GUT da planta de Biometano.
             </p>
             <button 
               onClick={handleConnectAi}
-              className="w-full bg-purple-600 hover:bg-purple-500 text-white font-black py-4 rounded-xl uppercase tracking-widest text-xs flex items-center justify-center gap-3 transition-all shadow-xl shadow-purple-900/40"
+              className="w-full bg-purple-600 hover:bg-purple-500 text-white font-black py-5 rounded-2xl uppercase tracking-[0.2em] text-xs flex items-center justify-center gap-3 transition-all shadow-2xl shadow-purple-900/40 active:scale-95"
             >
-              <Key size={18} /> Selecionar Chave API
+              <Key size={20} /> Vincular Chave API
             </button>
-            <p className="mt-6 text-[10px] text-slate-500 font-bold uppercase tracking-widest italic">
-              Requisito de Segurança: <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="text-purple-400 underline">Faturamento Ativo</a>
-            </p>
+            <div className="mt-8 pt-6 border-t border-slate-800">
+               <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest leading-loose">
+                Utilize a chave que você possui no seletor que será aberto.<br/>
+                <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="text-purple-400 hover:text-purple-300 underline underline-offset-4">Verificar Faturamento</a>
+               </p>
+            </div>
           </div>
         </div>
       )}
 
       <header className="bg-slate-900/80 backdrop-blur-md border-b border-slate-800 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex flex-col cursor-pointer" onClick={() => setView('dashboard')}>
-            <span className="text-2xl font-black text-white italic tracking-tighter">BIOMETANO <span className="text-orange-500">Caieiras</span></span>
+          <div className="flex flex-col cursor-pointer group" onClick={() => setView('dashboard')}>
+            <span className="text-2xl font-black text-white italic tracking-tighter group-hover:text-green-500 transition-colors">
+              BIOMETANO <span className="text-orange-500">Caieiras</span>
+            </span>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-green-500">Matriz GUT</span>
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-green-500">Engenharia de Risco</span>
               {aiConnected ? (
-                <span className="flex items-center gap-1 text-[8px] text-purple-400 bg-purple-900/20 px-1.5 py-0.5 rounded border border-purple-800/40 font-black uppercase">
-                  <Zap size={8} /> IA Online
+                <span className="flex items-center gap-1 text-[8px] text-purple-400 bg-purple-900/20 px-2 py-0.5 rounded border border-purple-800/40 font-black uppercase tracking-widest">
+                  <Zap size={8} fill="currentColor" /> IA Ativa
                 </span>
               ) : (
-                <button onClick={handleConnectAi} className="text-[8px] text-slate-500 underline font-black uppercase">IA Offline - Clique p/ Ativar</button>
+                <button onClick={handleConnectAi} className="text-[8px] text-slate-500 hover:text-purple-400 font-black uppercase flex items-center gap-1">
+                  <Key size={8} /> Conectar IA
+                </button>
               )}
             </div>
           </div>
 
-          <div className="flex gap-4">
-             <button onClick={() => setView('areas')} className="text-slate-500 hover:text-white transition-colors p-2"><Settings size={20} /></button>
+          <div className="flex gap-4 items-center">
+             <button 
+                onClick={() => setView('areas')} 
+                className={`p-2 rounded-lg transition-all ${view === 'areas' ? 'text-green-500 bg-green-500/10' : 'text-slate-500 hover:text-white hover:bg-slate-800'}`}
+             >
+                <Settings size={22} />
+             </button>
              <button 
                 onClick={() => {setCurrentIssue(null); setView('form');}}
-                className="bg-green-600 hover:bg-green-500 text-white px-6 py-2 rounded-lg font-black text-[11px] uppercase tracking-widest transition-all shadow-lg active:scale-95 flex items-center gap-2"
+                className="bg-green-600 hover:bg-green-500 text-white px-8 py-2.5 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] transition-all shadow-xl active:scale-95 flex items-center gap-2"
              >
-                <PlusCircle size={16} /> Novo Registro
+                <PlusCircle size={18} /> Novo Evento
              </button>
           </div>
         </div>
@@ -165,7 +186,7 @@ function App() {
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-10">
         {view === 'dashboard' && (
-          <div className="space-y-10">
+          <div className="space-y-12 animate-fade-in">
             <StatsCards issues={issues} />
             <Charts issues={issues} areas={areas} />
             <GUTTable 
@@ -191,9 +212,11 @@ function App() {
             onSave={handleSaveIssue} 
             onCancel={() => setView('dashboard')} 
             onDelete={async (id) => {
-              await issueService.delete(id);
-              setIssues(prev => prev.filter(i => i.id !== id));
-              setView('dashboard');
+              if (confirm("Deseja realmente excluir este registro permanentemente?")) {
+                await issueService.delete(id);
+                setIssues(prev => prev.filter(i => i.id !== id));
+                setView('dashboard');
+              }
             }}
             areas={areas.length > 0 ? areas : ["Geral"]}
             initialData={currentIssue}
