@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { GUTIssue, Status } from '../types';
-import { X, Calendar, MapPin, Activity, AlertCircle, Bot, Zap, Info, ExternalLink, FileText } from 'lucide-react';
+import { X, Calendar, MapPin, Activity, AlertCircle, Bot, Zap, Info, ExternalLink, FileText, Sparkles } from 'lucide-react';
 import { GUT_SCALES } from '../constants';
 
 interface DetailsModalProps {
@@ -20,178 +20,144 @@ export const DetailsModal: React.FC<DetailsModalProps> = ({ issue, onClose }) =>
   };
 
   const getFullLabel = (type: 'gravity' | 'urgency' | 'tendency', value: number) => {
-    return GUT_SCALES[type].find(s => s.value === value)?.label || value;
+    const scale = GUT_SCALES[type].find(s => s.value === value);
+    return scale ? scale.label : value;
   };
 
   const getPriorityInfo = (score: number) => {
-    if (score >= 100) return { 
-      label: 'EMERGÊNCIA CRÍTICA', 
-      desc: 'Ação imediata obrigatória. Risco de parada total do sistema de purificação ou danos severos aos equipamentos.', 
-      color: 'text-red-500',
-      bg: 'bg-red-950/50 border-red-900/50 shadow-[0_0_20px_rgba(239,68,68,0.1)]'
-    };
-    if (score >= 60) return { 
-      label: 'ALTA PRIORIDADE', 
-      desc: 'Intervenção técnica necessária no curto prazo para evitar o agravamento do processo de refino de biometano.', 
-      color: 'text-orange-500',
-      bg: 'bg-orange-950/50 border-orange-900/50'
-    };
-    if (score >= 20) return { 
-      label: 'PRIORIDADE MÉDIA', 
-      desc: 'Deve ser planejado e executado na próxima janela de manutenção programada.', 
-      color: 'text-amber-500',
-      bg: 'bg-amber-950/50 border-amber-900/50'
-    };
-    return { 
-      label: 'BAIXA PRIORIDADE', 
-      desc: 'Monitorar a evolução. A correção pode ser realizada de forma rotineira sem pressa imediata.', 
-      color: 'text-green-500',
-      bg: 'bg-green-950/50 border-green-900/50'
-    };
+    if (score >= 100) return { label: 'EMERGÊNCIA CRÍTICA', color: 'text-red-500', bg: 'bg-red-950/50 border-red-900/50' };
+    if (score >= 60) return { label: 'ALTA PRIORIDADE', color: 'text-orange-500', bg: 'bg-orange-950/50 border-orange-900/50' };
+    if (score >= 20) return { label: 'PRIORIDADE MÉDIA', color: 'text-amber-500', bg: 'bg-amber-950/50 border-amber-900/50' };
+    return { label: 'BAIXA PRIORIDADE', color: 'text-green-500', bg: 'bg-green-950/50 border-green-900/50' };
   };
 
   const priority = getPriorityInfo(issue.score);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/95 backdrop-blur-sm animate-fade-in">
-      <div className="bg-slate-900 border border-slate-800 w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden animate-slide-up ring-1 ring-white/10">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/95 backdrop-blur-md animate-fade-in overflow-y-auto">
+      <div className="bg-slate-900 border border-slate-800 w-full max-w-3xl rounded-[2rem] shadow-2xl overflow-hidden animate-slide-up ring-1 ring-white/10 my-8">
         
-        {/* Top Header */}
-        <div className="relative p-6 border-b border-slate-800 bg-gradient-to-br from-slate-900 to-slate-800">
-          <button 
-            onClick={onClose}
-            className="absolute top-4 right-4 p-2 text-slate-500 hover:text-white hover:bg-slate-800 rounded-full transition-all"
-          >
+        <div className="relative p-8 border-b border-slate-800 bg-gradient-to-br from-slate-900 to-slate-800">
+          <button onClick={onClose} className="absolute top-6 right-6 p-2 text-slate-500 hover:text-white hover:bg-slate-800 rounded-full transition-all">
             <X size={20} />
           </button>
           
-          <div className="flex items-center gap-2 text-[10px] font-black text-green-500 uppercase tracking-[0.2em] mb-3">
-            <Activity size={14} className="animate-pulse" /> Detalhes da Ocorrência
+          <div className="flex items-center gap-2 text-[10px] font-black text-green-500 uppercase tracking-widest mb-4">
+            <Activity size={14} className="animate-pulse" /> Registro Técnico de Risco
           </div>
           
-          <h2 className="text-3xl font-black text-white pr-10 tracking-tight leading-none mb-4 uppercase">{issue.title}</h2>
+          <h2 className="text-3xl font-black text-white pr-12 tracking-tight leading-tight mb-5 uppercase">{issue.title}</h2>
           
           <div className="flex flex-wrap gap-4">
-             <span className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider border ${getStatusColor(issue.status)}`}>
+             <span className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border ${getStatusColor(issue.status)}`}>
                 {issue.status}
              </span>
-             <div className="flex items-center gap-1.5 text-slate-400 text-[10px] font-bold uppercase tracking-tighter">
-                <MapPin size={12} className="text-green-500" /> {issue.area}
+             <div className="flex items-center gap-2 text-slate-400 text-[10px] font-black uppercase tracking-widest">
+                <MapPin size={14} className="text-green-500" /> {issue.area}
              </div>
-             <div className="flex items-center gap-1.5 text-slate-400 text-[10px] font-bold uppercase tracking-tighter">
-                <Calendar size={12} className="text-blue-500" /> {new Date(issue.createdAt).toLocaleDateString('pt-BR')}
+             <div className="flex items-center gap-2 text-slate-400 text-[10px] font-black uppercase tracking-widest">
+                <Calendar size={14} className="text-blue-500" /> {new Date(issue.createdAt).toLocaleDateString('pt-BR')}
              </div>
           </div>
         </div>
 
-        {/* Scrollable Content */}
-        <div className="p-6 space-y-6 max-h-[60vh] overflow-y-auto custom-scrollbar bg-slate-900/50">
+        <div className="p-8 space-y-8 max-h-[60vh] overflow-y-auto custom-scrollbar bg-slate-900/40">
           
-          {/* GUT Values Detailed */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-            <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
-              <span className="text-[9px] uppercase text-slate-500 font-black tracking-widest block mb-1">Gravidade</span>
-              <p className="text-slate-200 text-sm font-bold">{getFullLabel('gravity', issue.gravity)}</p>
-            </div>
-            <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
-              <span className="text-[9px] uppercase text-slate-500 font-black tracking-widest block mb-1">Urgência</span>
-              <p className="text-slate-200 text-sm font-bold">{getFullLabel('urgency', issue.urgency)}</p>
-            </div>
-            <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
-              <span className="text-[9px] uppercase text-slate-500 font-black tracking-widest block mb-1">Tendência</span>
-              <p className="text-slate-200 text-sm font-bold">{getFullLabel('tendency', issue.tendency)}</p>
-            </div>
-          </div>
-
-          {/* Final Score Section */}
-          <div className={`p-5 rounded-xl border ${priority.bg} transition-all`}>
-             <div className="flex items-center justify-between">
-                <div className="flex flex-col">
-                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Pontuação Final (GUT)</span>
-                    <h3 className={`text-lg font-black uppercase tracking-wide ${priority.color}`}>{priority.label}</h3>
-                </div>
-                <div className={`text-5xl font-black italic drop-shadow-lg ${priority.color}`}>
-                  {issue.score}
-                </div>
-             </div>
-             <div className="mt-4 pt-3 border-t border-white/5 flex items-start gap-2.5">
-                <Info size={14} className={`mt-0.5 shrink-0 ${priority.color}`} />
-                <p className="text-slate-300 text-sm leading-snug font-medium italic">
-                    {priority.desc}
-                </p>
-             </div>
-          </div>
-
-          {/* Issue Description */}
-          <div className="space-y-2">
-            <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-              <AlertCircle size={14} className="text-blue-400" /> Descrição do Problema
-            </h4>
-            <div className="text-slate-300 text-sm leading-relaxed bg-slate-950/80 p-4 rounded-xl border border-slate-800 font-medium whitespace-pre-wrap">
-              {issue.description}
-            </div>
-          </div>
-
-          {/* Immediate Action */}
-          {issue.immediateAction && (
-            <div className="space-y-2">
-              <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                <Zap size={14} className="text-amber-400" /> Ação Imediata Recomendada
-              </h4>
-              <div className="text-amber-100/90 text-sm leading-relaxed bg-amber-950/20 p-4 rounded-xl border border-amber-900/30 font-bold italic">
-                {issue.immediateAction}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {[
+              { label: 'Gravidade', val: issue.gravity, type: 'gravity' },
+              { label: 'Urgência', val: issue.urgency, type: 'urgency' },
+              { label: 'Tendência', val: issue.tendency, type: 'tendency' }
+            ].map(g => (
+              <div key={g.type} className="bg-slate-800/40 p-4 rounded-2xl border border-slate-700/50">
+                <span className="text-[9px] uppercase text-slate-500 font-black tracking-widest block mb-2">{g.label}</span>
+                <p className="text-slate-200 text-sm font-bold leading-tight">{getFullLabel(g.type as any, g.val)}</p>
               </div>
-            </div>
-          )}
+            ))}
+          </div>
 
-          {/* Anexo Google Drive */}
+          <div className={`p-6 rounded-2xl border-2 ${priority.bg} transition-all flex items-center justify-between`}>
+             <div className="space-y-1">
+                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Pontuação Final</span>
+                <h3 className={`text-xl font-black uppercase tracking-widest ${priority.color}`}>{priority.label}</h3>
+             </div>
+             <div className={`text-6xl font-black italic ${priority.color}`}>
+               {issue.score}
+             </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Bloco do Problema */}
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                  <AlertCircle size={14} className="text-blue-400" /> Relato do Evento
+                </h4>
+                <div className="text-slate-300 text-xs leading-relaxed bg-slate-950 p-5 rounded-2xl border border-slate-800 font-medium whitespace-pre-wrap">
+                  {issue.description}
+                </div>
+              </div>
+
+              {issue.aiSuggestion && (
+                <div className="bg-purple-900/10 p-5 rounded-2xl border border-purple-800/20">
+                  <h4 className="text-[9px] font-black text-purple-400 uppercase tracking-widest flex items-center gap-2 mb-2">
+                    <Bot size={14} /> Parecer Técnico IA (O Problema)
+                  </h4>
+                  <p className="text-purple-200/90 text-[11px] font-medium leading-relaxed italic">
+                    "{issue.aiSuggestion}"
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Bloco da Ação */}
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                  <Zap size={14} className="text-amber-400" /> Conduta Recomendada
+                </h4>
+                <div className="text-amber-100/90 text-xs leading-relaxed bg-amber-950/20 p-5 rounded-2xl border border-amber-900/30 font-bold italic">
+                  {issue.immediateAction || "Nenhuma ação imediata registrada."}
+                </div>
+              </div>
+
+              {issue.aiActionSuggestion && (
+                <div className="bg-emerald-900/10 p-5 rounded-2xl border border-emerald-800/20">
+                  <h4 className="text-[9px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-2 mb-2">
+                    <Sparkles size={14} /> Refinamento IA (A Resposta)
+                  </h4>
+                  <p className="text-emerald-100/90 text-[11px] font-bold leading-relaxed italic">
+                    "{issue.aiActionSuggestion}"
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
           {issue.attachmentUrl && (
-            <div className="space-y-2">
+            <div className="space-y-3">
                <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                <FileText size={14} className="text-green-400" /> Documentação de Evidência
+                <FileText size={14} className="text-green-400" /> Evidência do Drive
               </h4>
-              <a 
-                href={issue.attachmentUrl} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="flex items-center justify-between bg-slate-800 hover:bg-slate-700 p-4 rounded-xl border border-slate-700 transition-all group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-green-500/10 rounded-lg border border-green-500/20 text-green-500">
-                    <FileText size={18} />
+              <a href={issue.attachmentUrl} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between bg-slate-800 hover:bg-slate-700 p-5 rounded-2xl border border-slate-700 transition-all group">
+                <div className="flex items-center gap-4">
+                  <div className="p-2.5 bg-green-500/10 rounded-xl border border-green-500/20 text-green-500">
+                    <FileText size={20} />
                   </div>
                   <div>
-                    <p className="text-xs text-slate-200 font-bold truncate max-w-[250px]">{issue.attachmentName || 'Visualizar Anexo'}</p>
-                    <p className="text-[10px] text-slate-500 font-medium">Google Drive Asset</p>
+                    <p className="text-xs text-slate-200 font-black truncate max-w-[300px] uppercase tracking-tighter">{issue.attachmentName || 'Visualizar Anexo'}</p>
+                    <p className="text-[9px] text-slate-500 font-bold uppercase mt-1">Sincronizado via Cloud Storage</p>
                   </div>
                 </div>
-                <ExternalLink size={16} className="text-slate-500 group-hover:text-white transition-colors" />
+                <ExternalLink size={18} className="text-slate-500 group-hover:text-white transition-colors" />
               </a>
             </div>
           )}
-
-          {/* AI Analysis */}
-          {issue.aiSuggestion && (
-            <div className="space-y-2">
-              <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                <Bot size={14} className="text-purple-400" /> Parecer Técnico IA
-              </h4>
-              <div className="bg-purple-950/30 p-4 rounded-xl border border-purple-900/20">
-                <p className="text-purple-200/90 text-xs font-medium leading-relaxed italic">
-                  "{issue.aiSuggestion}"
-                </p>
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* Modal Footer */}
-        <div className="p-4 bg-slate-900 border-t border-slate-800 flex justify-end">
-          <button 
-            onClick={onClose}
-            className="px-8 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg font-black uppercase text-[11px] tracking-widest transition-all active:scale-95 border border-slate-700"
-          >
-            Fechar
+        <div className="p-6 bg-slate-900 border-t border-slate-800 flex justify-end">
+          <button onClick={onClose} className="px-10 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-black uppercase text-[11px] tracking-widest transition-all active:scale-95 border border-slate-700">
+            Fechar Relatório
           </button>
         </div>
       </div>

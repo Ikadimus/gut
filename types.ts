@@ -30,6 +30,7 @@ export interface GUTIssue {
   status: Status;
   createdAt: string;
   aiSuggestion?: string;
+  aiActionSuggestion?: string;
   attachmentUrl?: string;
   attachmentName?: string;
 }
@@ -39,4 +40,5 @@ export interface AIScoringResult {
   urgency: number;
   tendency: number;
   reasoning: string;
+  actionComment: string;
 }
