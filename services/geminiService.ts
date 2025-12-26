@@ -7,7 +7,7 @@ export const analyzeIssueWithAI = async (
   description: string,
   area: string
 ): Promise<AIScoringResult | null> => {
-  // Ajustado para GEMINI_API_KEY conforme sua configuração no Vercel
+  // Prioriza GEMINI_API_KEY (Vercel) e aceita API_KEY como fallback
   const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
 
   if (!apiKey || apiKey === "undefined" || apiKey === "") {
@@ -15,23 +15,28 @@ export const analyzeIssueWithAI = async (
   }
 
   try {
-    // Criar nova instância para garantir o uso da chave mais recente
+    // Inicializa o cliente com a chave configurada
     const ai = new GoogleGenAI({ apiKey });
 
     const prompt = `
       Você é um Engenheiro Sênior de Segurança de Processos em uma Usina de Purificação de Biometano.
-      Analise o evento abaixo e sugira notas GUT (1-5).
+      Analise o evento abaixo e sugira notas para a Matriz GUT (1 a 5).
       
-      EVENTO:
+      CRITÉRIOS:
+      - Gravidade (G): Impacto no processo/segurança.
+      - Urgência (U): Prazo para ação.
+      - Tendência (T): Potencial de piora se nada for feito.
+
+      EVENTO PARA ANÁLISE:
       - Título: ${title}
       - Área: ${area}
       - Descrição: ${description}
 
-      Retorne apenas o JSON com gravity, urgency, tendency e reasoning (máx 150 caracteres).
+      Retorne estritamente um JSON com: gravity (int), urgency (int), tendency (int) e reasoning (string, max 150 caracteres).
     `;
 
     const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash",
+      model: "gemini-3-flash-preview",
       contents: [{ parts: [{ text: prompt }] }],
       config: {
         responseMimeType: "application/json",
@@ -49,11 +54,15 @@ export const analyzeIssueWithAI = async (
     });
 
     const text = response.text;
-    if (!text) throw new Error("Resposta da IA vazia.");
+    if (!text) throw new Error("A IA retornou uma resposta vazia.");
 
     return JSON.parse(text.trim()) as AIScoringResult;
   } catch (error: any) {
-    console.error("Gemini Error:", error);
-    throw new Error(error.message || "Falha na análise da IA.");
+    console.error("Erro na Chamada Gemini:", error);
+    // Tratamento amigável para erro de cota
+    if (error.message?.includes("429") || error.message?.includes("quota")) {
+      throw new Error("Limite de requisições da IA atingido. Tente novamente em alguns segundos.");
+    }
+    throw new Error(error.message || "Falha técnica na análise da IA.");
   }
 };
