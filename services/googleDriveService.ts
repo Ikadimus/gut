@@ -1,14 +1,13 @@
 
 /**
- * Serviço para integração com Google Drive API v3 utilizando Conta de Serviço (Fixed Account)
+ * Serviço para integração com Google Drive API v3 utilizando Conta de Serviço
  * Esta implementação utiliza SubtleCrypto para assinar o JWT no cliente.
  */
 
-// Dados da Conta de Serviço fornecidos
 const SERVICE_ACCOUNT_EMAIL = 'gutmatrix@matrizgut.iam.gserviceaccount.com';
 const FOLDER_ID = '1CkAMNfWNHMVYDLfovT3l4AYgXep-FzuS';
 
-// Chave Privada extraída do seu JSON (PEM format)
+// Chave Privada corrigida e formatada
 const PRIVATE_KEY_PEM = `-----BEGIN PRIVATE KEY-----
 MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCuSwWm8AEcDMxZ
 6gUMqCnt0DADK941RJNgTRtbGjW5Ba6fYa5yub8pyuIhiCEBcerbauESOoNcK6OG
@@ -41,14 +40,14 @@ RWqcjleGSEuXVVVH/T3QCIY=
 let cachedToken: { token: string; expiry: number } | null = null;
 
 /**
- * Converte a chave PEM para CryptoKey (RS256)
+ * Importa a chave RSA limpando resíduos de formatação
  */
 async function importPrivateKey(pem: string): Promise<CryptoKey> {
-  // Remove as tags de cabeçalho e rodapé e QUALQUER espaço em branco (inclusive \r e \n)
   const cleanBase64 = pem
     .replace(/-----BEGIN PRIVATE KEY-----/g, "")
     .replace(/-----END PRIVATE KEY-----/g, "")
-    .replace(/\s/g, "");
+    .replace(/\\n/g, "") // Remove literais \n (backslash + n)
+    .replace(/\s/g, "");  // Remove espaços, quebras de linha reais e tabs
   
   try {
     const binaryDerString = window.atob(cleanBase64);
@@ -68,8 +67,8 @@ async function importPrivateKey(pem: string): Promise<CryptoKey> {
       ["sign"]
     );
   } catch (e) {
-    console.error("Erro interno no processamento da chave:", e);
-    throw new Error("A string da chave privada não está formatada corretamente para Base64. Verifique se copiou a chave 'private_key' do JSON corretamente.");
+    console.error("Erro crítico na decodificação Base64 da chave:", e);
+    throw new Error("Erro de formatação na Chave Privada. Certifique-se de que a chave no código não contém caracteres inválidos.");
   }
 }
 
@@ -81,7 +80,6 @@ function base64UrlEncode(str: string | Uint8Array): string {
   if (typeof str === 'string') {
     base64 = window.btoa(unescape(encodeURIComponent(str)));
   } else {
-    // Conversão segura para evitar estouro de pilha com spread operator
     const binary = Array.from(str).map(b => String.fromCharCode(b)).join('');
     base64 = window.btoa(binary);
   }
@@ -89,7 +87,7 @@ function base64UrlEncode(str: string | Uint8Array): string {
 }
 
 /**
- * Gera o Assertion JWT para a Google Cloud
+ * Gera o Token JWT assinado
  */
 async function generateJWT(): Promise<string> {
   const header = { alg: "RS256", typ: "JWT" };
@@ -118,7 +116,7 @@ async function generateJWT(): Promise<string> {
 }
 
 /**
- * Obtém o access_token via OAuth2 Token Endpoint
+ * Obtém o access_token para a Conta de Serviço
  */
 async function getAccessToken(): Promise<string> {
   if (cachedToken && cachedToken.expiry > Date.now()) {
@@ -138,7 +136,7 @@ async function getAccessToken(): Promise<string> {
 
   if (!response.ok) {
     const error = await response.json();
-    throw new Error(`Erro na autenticação: ${error.error_description || error.error}`);
+    throw new Error(`Auth Error: ${error.error_description || error.error}`);
   }
 
   const data = await response.json();
@@ -151,14 +149,14 @@ async function getAccessToken(): Promise<string> {
 }
 
 /**
- * Upload de arquivo para a pasta fixa definida
+ * Upload direto para o Google Drive
  */
 export const uploadFileToDrive = async (file: File): Promise<{ url: string; name: string }> => {
   try {
     const token = await getAccessToken();
 
-    const metadata: any = {
-      name: `GUT_OPERACAO_${Date.now()}_${file.name}`,
+    const metadata = {
+      name: `GUT_BIOMETANO_${Date.now()}_${file.name}`,
       mimeType: file.type,
       parents: [FOLDER_ID]
     };
@@ -175,7 +173,7 @@ export const uploadFileToDrive = async (file: File): Promise<{ url: string; name
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error?.message || "Erro no upload silencioso.");
+      throw new Error(error.error?.message || "Erro no upload.");
     }
 
     const result = await response.json();
@@ -184,7 +182,7 @@ export const uploadFileToDrive = async (file: File): Promise<{ url: string; name
       name: file.name
     };
   } catch (err: any) {
-    console.error("Erro Google Drive:", err);
+    console.error("Google Drive Error:", err);
     throw new Error(`Falha no armazenamento: ${err.message}`);
   }
 };
