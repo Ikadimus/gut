@@ -7,7 +7,7 @@
 const SERVICE_ACCOUNT_EMAIL = "gutmatrix@matrizgut.iam.gserviceaccount.com";
 const FOLDER_ID = "1CkAMNfWNHMVYDLfovT3l4AYgXep-FzuS";
 
-// Chave privada extraída do JSON do cliente
+// Chave privada PEM completa (recuperada do backup íntegro)
 const PRIVATE_KEY_PEM = `-----BEGIN PRIVATE KEY-----
 MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCuSwWm8AEcDMxZ
 6gUMqCnt0DADK941RJNgTRtbGjW5Ba6fYa5yub8pyuIhiCEBcerbauESOoNcK6OG
@@ -44,12 +44,14 @@ let cachedToken: { token: string; expiry: number } | null = null;
  */
 async function importPrivateKey(): Promise<CryptoKey> {
   try {
-    // Normalização radical: remove headers e QUALQUER caractere que não seja base64 válido
+    // Normalização: remove headers e QUALQUER caractere que não seja base64 válido
     const base64 = PRIVATE_KEY_PEM
       .replace(/-----BEGIN PRIVATE KEY-----/, "")
       .replace(/-----END PRIVATE KEY-----/, "")
-      .replace(/[^A-Za-z0-9+/=]/g, ""); // Remove espaços, novas linhas e caracteres inválidos
+      .replace(/[^A-Za-z0-9+/=]/g, ""); 
 
+    // O erro 'atob' ocorre quando a string está truncada ou contém caracteres inválidos.
+    // Garantimos aqui que a string limpa seja passada.
     const binaryDerString = window.atob(base64);
     const binaryDer = new Uint8Array(binaryDerString.length);
     for (let i = 0; i < binaryDerString.length; i++) {
@@ -72,7 +74,7 @@ async function importPrivateKey(): Promise<CryptoKey> {
 }
 
 /**
- * Utilitário Base64URL
+ * Utilitário Base64URL (Necessário para JWT)
  */
 function base64UrlEncode(data: string | Uint8Array): string {
   let base64;
@@ -171,9 +173,7 @@ export async function uploadFileToDrive(file: File): Promise<{ url: string; name
 
     /**
      * IMPORTANTE: 
-     * 1. 'supportsAllDrives=true' permite que a Service Account escreva em pastas de Drives Compartilhados.
-     * 2. O erro 'Storage Quota' ocorre porque Service Accounts têm cota 0 no seu 'My Drive'.
-     *    A pasta FOLDER_ID deve estar em um DRIVE COMPARTILHADO onde a Service Account tenha permissão de escrita.
+     * supportsAllDrives=true é vital para Service Accounts que operam em Drives Compartilhados.
      */
     const uploadUrl = "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&fields=id,name,webViewLink";
 
@@ -188,9 +188,8 @@ export async function uploadFileToDrive(file: File): Promise<{ url: string; name
     if (!response.ok) {
       if (result.error?.message?.includes("quota")) {
         throw new Error(
-          "ERRO DE COTA: Contas de serviço não possuem armazenamento próprio. " +
-          "Certifique-se de que a pasta de destino (" + FOLDER_ID + ") esteja em um DRIVE COMPARTILHADO (Shared Drive) " +
-          "e que a conta " + SERVICE_ACCOUNT_EMAIL + " tenha sido adicionada como membro (Contribuidor/Gerente)."
+          "ERRO DE COTA: A pasta de destino (" + FOLDER_ID + ") deve estar em um DRIVE COMPARTILHADO " +
+          "e a conta " + SERVICE_ACCOUNT_EMAIL + " deve ser membro desse Drive."
         );
       }
       throw new Error(result.error?.message || "Erro durante o upload para o Google Drive.");
