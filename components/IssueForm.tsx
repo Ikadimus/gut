@@ -80,10 +80,22 @@ export const IssueForm: React.FC<IssueFormProps> = ({
     }
   };
 
-  const removeAttachment = () => {
-    setAttachmentUrl(undefined);
-    setAttachmentName(undefined);
-    if (fileInputRef.current) fileInputRef.current.value = '';
+  const removeAttachment = async () => {
+    if (!attachmentUrl) return;
+    
+    if (confirm("Deseja realmente excluir este anexo permanentemente do servidor?")) {
+      try {
+        setUploading(true);
+        await storageService.deleteFile(attachmentUrl);
+        setAttachmentUrl(undefined);
+        setAttachmentName(undefined);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      } catch (err: any) {
+        alert("Erro ao remover arquivo: " + err.message);
+      } finally {
+        setUploading(false);
+      }
+    }
   };
 
   const handleAISuggestion = async () => {
@@ -164,13 +176,13 @@ export const IssueForm: React.FC<IssueFormProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Subsistema de Origem</label>
-                <select value={area} onChange={(e) => setArea(e.target.value)} className="w-full rounded-xl bg-slate-900 border-slate-700 text-slate-100 p-3 border outline-none font-bold text-sm focus:border-green-500/50 transition-all">
+                <select value={area} onChange={(e) => setArea(e.target.value)} className="w-full rounded-xl bg-slate-950 border-slate-700 text-slate-100 p-3 border outline-none font-bold text-sm focus:border-green-500/50 transition-all">
                   {areas.map(a => <option key={a} value={a}>{a}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Evento Crítico</label>
-                <input type="text" required value={title} onChange={(e) => setTitle(e.target.value)} className="w-full rounded-xl bg-slate-900 border-slate-700 text-slate-100 p-3 border outline-none font-bold text-sm focus:border-green-500/50 transition-all" placeholder="Título resumido da falha" />
+                <input type="text" required value={title} onChange={(e) => setTitle(e.target.value)} className="w-full rounded-xl bg-slate-950 border-slate-700 text-slate-100 p-3 border outline-none font-bold text-sm focus:border-green-500/50 transition-all" placeholder="Título resumido da falha" />
               </div>
             </div>
 
@@ -178,7 +190,7 @@ export const IssueForm: React.FC<IssueFormProps> = ({
               <div className="space-y-4">
                 <div>
                   <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Relato Técnico Detalhado</label>
-                  <textarea required rows={3} value={description} onChange={(e) => setDescription(e.target.value)} className="w-full rounded-xl bg-slate-900 border-slate-700 text-slate-100 p-3 border outline-none text-xs leading-relaxed" placeholder="Descreva os sintomas, pressões e parâmetros observados..." />
+                  <textarea required rows={3} value={description} onChange={(e) => setDescription(e.target.value)} className="w-full rounded-xl bg-slate-950 border-slate-700 text-slate-100 p-3 border outline-none text-xs leading-relaxed" placeholder="Descreva os sintomas, pressões e parâmetros observados..." />
                 </div>
                 
                 {aiReasoning && (
@@ -197,7 +209,7 @@ export const IssueForm: React.FC<IssueFormProps> = ({
                   <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-2">
                     <Zap size={12} className="text-amber-400" /> Ação Imediata Recomendada (Operador)
                   </label>
-                  <textarea rows={3} value={immediateAction} onChange={(e) => setImmediateAction(e.target.value)} className="w-full rounded-xl bg-slate-900 border-slate-700 text-slate-100 p-3 border outline-none text-xs leading-relaxed" placeholder="Qual a primeira providência para conter o risco?" />
+                  <textarea rows={3} value={immediateAction} onChange={(e) => setImmediateAction(e.target.value)} className="w-full rounded-xl bg-slate-950 border-slate-700 text-slate-100 p-3 border outline-none text-xs leading-relaxed" placeholder="Qual a primeira providência para conter o risco?" />
                 </div>
 
                 {aiActionComment && (
@@ -213,7 +225,7 @@ export const IssueForm: React.FC<IssueFormProps> = ({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-               <div className="bg-slate-900/40 p-4 rounded-xl border border-slate-700/50">
+               <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-700/50">
                   <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2.5 flex items-center gap-2">
                     <Paperclip size={12} /> Documentação Operacional / Evidência
                   </label>
@@ -258,7 +270,7 @@ export const IssueForm: React.FC<IssueFormProps> = ({
           </div>
 
           <div className="lg:col-span-1 flex flex-col gap-4 h-full">
-             <div className="bg-slate-900/80 p-5 rounded-2xl border border-slate-700/50 space-y-7 shadow-inner">
+             <div className="bg-slate-950/80 p-5 rounded-2xl border border-slate-700/50 space-y-7 shadow-inner">
                 <h3 className="font-black text-slate-500 text-center text-[9px] uppercase tracking-[0.3em] mb-4 border-b border-slate-800 pb-2">Matriz de Campo</h3>
                 
                 {[

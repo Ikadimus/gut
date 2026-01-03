@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { PlusCircle, LayoutDashboard, Settings, Loader2, Thermometer, ListFilter, AlertCircle, Users, LogOut, Terminal, HardDrive, Menu, X as CloseIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { PlusCircle, LayoutDashboard, Settings, Loader2, Thermometer, ListFilter, AlertCircle, Users, LogOut, Terminal, HardDrive, Menu, X as CloseIcon, ChevronLeft, ChevronRight, Database } from 'lucide-react';
 import { GUTIssue, Status, SystemSettings, ThermographyRecord, User, UserRole } from './types';
 import { StatsCards } from './components/StatsCards';
 import { IssueForm } from './components/IssueForm';
@@ -11,6 +11,9 @@ import { DetailsModal } from './components/DetailsModal';
 import { ThermographyManager } from './components/ThermographyManager';
 import { Login } from './components/Login';
 import { AdminUsers } from './components/AdminUsers';
+import { EquipmentProfile } from './components/EquipmentProfile';
+import { EquipmentBrowser } from './components/EquipmentBrowser';
+import { DatabaseSetup } from './components/DatabaseSetup';
 import { issueService, areaService, settingsService, thermographyService, userService, storageService } from './services/supabase';
 
 declare global {
@@ -24,7 +27,7 @@ declare global {
   }
 }
 
-type MainView = 'dashboard' | 'gut' | 'thermography' | 'areas' | 'users';
+type MainView = 'dashboard' | 'gut' | 'thermography' | 'assets' | 'areas' | 'users' | 'equipment-profile' | 'db-setup';
 
 function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -43,6 +46,7 @@ function App() {
   });
   
   const [view, setView] = useState<MainView>('dashboard');
+  const [selectedEqName, setSelectedEqName] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [currentIssue, setCurrentIssue] = useState<GUTIssue | null>(null);
   const [showDetails, setShowDetails] = useState(false);
@@ -103,14 +107,12 @@ function App() {
     try {
       setLoading(true);
       setError(null);
-      
       const [fetchedIssues, fetchedAreas, fetchedSettings, fetchedThermo] = await Promise.all([
         issueService.getAll().catch(() => []),
         areaService.getAll().catch(() => []),
         settingsService.get().catch(() => settings),
         thermographyService.getAll().catch(() => [])
       ]);
-
       setIssues(fetchedIssues);
       setAreas(fetchedAreas);
       setSettings(fetchedSettings);
@@ -146,6 +148,11 @@ function App() {
     setView('dashboard');
   };
 
+  const onViewProfile = (name: string) => {
+    setSelectedEqName(name);
+    setView('equipment-profile');
+  };
+
   if (!currentUser) {
     return <Login onLoginSuccess={setCurrentUser} />;
   }
@@ -166,17 +173,10 @@ function App() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex overflow-hidden selection:bg-green-500/30">
-      {/* SIDEBAR */}
       <aside className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-slate-900 border-r border-slate-800 transition-all duration-300 flex flex-col z-50 relative`}>
-        {/* Toggle Button Moved to Internal Sidebar Edge */}
-        <button 
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="absolute top-6 -right-3 bg-slate-800 border border-slate-700 rounded-full p-1.5 text-slate-400 hover:text-white transition-all shadow-xl z-[60] hover:scale-110 active:scale-95"
-          title={sidebarOpen ? "Recolher Menu" : "Expandir Menu"}
-        >
+        <button onClick={() => setSidebarOpen(!sidebarOpen)} className="absolute top-6 -right-3 bg-slate-800 border border-slate-700 rounded-full p-1.5 text-slate-400 hover:text-white transition-all shadow-xl z-[60] hover:scale-110 active:scale-95">
           {sidebarOpen ? <ChevronLeft size={14}/> : <ChevronRight size={14}/>}
         </button>
-
         <div className="p-6 flex flex-col items-center">
           <div className="flex flex-col items-center group cursor-pointer mb-8" onClick={() => setView('dashboard')}>
              {sidebarOpen ? (
@@ -186,29 +186,17 @@ function App() {
              ) : (
                <div className="w-10 h-10 rounded-xl bg-orange-600 flex items-center justify-center font-black text-white italic text-lg shadow-lg shadow-orange-900/20">B</div>
              )}
-            {sidebarOpen && (
-              <div className="flex items-center gap-2 mt-1">
-                <span className="text-[8px] font-black uppercase tracking-[0.2em] text-slate-500">Risk Engineering</span>
-                {aiConnected && <div className="w-1 h-1 rounded-full bg-purple-500 animate-pulse"></div>}
-              </div>
-            )}
           </div>
-
           <div className="w-full space-y-2">
             <NavButton target="dashboard" icon={LayoutDashboard} label="Dashboard" colorClass="bg-slate-100 text-slate-950" />
             <NavButton target="gut" icon={ListFilter} label="Matrix GUT" colorClass="bg-blue-600 text-white" />
             <NavButton target="thermography" icon={Thermometer} label="Termografia" colorClass="bg-orange-600 text-white" />
-            
-            {isAdmin && (
-              <NavButton target="users" icon={Users} label="Usuários" colorClass="bg-indigo-600 text-white" />
-            )}
-            
-            {isAdmin && (
-              <NavButton target="areas" icon={Settings} label="Configuração" colorClass="bg-green-600 text-white" />
-            )}
+            <NavButton target="assets" icon={HardDrive} label="Ativos" colorClass="bg-emerald-600 text-white" />
+            {isAdmin && <NavButton target="users" icon={Users} label="Usuários" colorClass="bg-indigo-600 text-white" />}
+            {isAdmin && <NavButton target="areas" icon={Settings} label="Configuração" colorClass="bg-green-600 text-white" />}
+            {isDev && <NavButton target="db-setup" icon={Database} label="Banco SQL" colorClass="bg-blue-900 text-blue-200" />}
           </div>
         </div>
-
         <div className="mt-auto p-4 border-t border-slate-800">
            <div className={`flex items-center ${sidebarOpen ? 'gap-3 px-3' : 'justify-center px-0'} py-3 rounded-2xl bg-black/20 mb-4 overflow-hidden`}>
                <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-[10px] font-black uppercase border transition-all shrink-0 ${isDev ? 'bg-purple-900/30 text-purple-400 border-purple-800/50' : 'bg-slate-800 text-slate-400 border-slate-700'}`}>
@@ -221,156 +209,42 @@ function App() {
                  </div>
                )}
            </div>
-           
-           <button 
-             onClick={handleLogout}
-             className={`w-full flex items-center ${sidebarOpen ? 'px-4 justify-start' : 'justify-center'} py-3 rounded-xl text-red-500 hover:bg-red-500/10 transition-all font-black text-[10px] uppercase tracking-widest`}
-           >
+           <button onClick={handleLogout} className={`w-full flex items-center ${sidebarOpen ? 'px-4 justify-start' : 'justify-center'} py-3 rounded-xl text-red-500 hover:bg-red-500/10 transition-all font-black text-[10px] uppercase tracking-widest`}>
              <LogOut size={18} className="shrink-0" />
              {sidebarOpen && <span className="ml-3">Sair</span>}
            </button>
         </div>
       </aside>
 
-      {/* MAIN CONTENT AREA */}
       <main className="flex-1 overflow-y-auto custom-scrollbar bg-slate-950 relative">
         <div className="max-w-7xl mx-auto px-6 py-10">
-          
-          {isDev && storageAlert && (
-            <div className="bg-orange-500/10 border border-orange-500/30 text-orange-400 p-4 rounded-2xl mb-6 flex items-center justify-between animate-fade-in shadow-xl shadow-orange-950/20">
-              <div className="flex items-center gap-3">
-                <HardDrive size={20} className="animate-pulse" />
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-widest">Alerta de Infraestrutura (Developer Only)</p>
-                  <p className="text-[9px] font-bold opacity-80 uppercase">O bucket 'attachments' não foi detectado no Supabase.</p>
-                </div>
-              </div>
-              <button onClick={() => setStorageAlert(false)} className="text-[9px] font-black uppercase tracking-widest opacity-50 hover:opacity-100">Ignorar</button>
-            </div>
-          )}
-
-          {error && (
-            <div className="bg-red-950/40 border border-red-800/50 text-red-200 p-5 rounded-2xl mb-8 flex items-start gap-4 animate-fade-in">
-              <AlertCircle className="text-red-500 shrink-0 mt-1" />
-              <div>
-                <p className="font-black uppercase text-xs tracking-widest mb-1">Erro Crítico</p>
-                <p className="text-xs opacity-80 leading-relaxed">{error}</p>
-              </div>
-            </div>
-          )}
-
-          {loading && issues.length === 0 && !error && (
-            <div className="flex flex-col items-center justify-center py-40 gap-4">
-               <Loader2 size={48} className="animate-spin text-green-500" />
-               <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Acessando Central de Caieiras...</p>
-            </div>
-          )}
-
+          {error && <div className="bg-red-950/40 border border-red-800/50 text-red-200 p-5 rounded-2xl mb-8 flex items-start gap-4 animate-fade-in"><AlertCircle className="text-red-500 shrink-0 mt-1" /><div><p className="font-black uppercase text-xs tracking-widest mb-1">Erro Crítico</p><p className="text-xs opacity-80 leading-relaxed">{error}</p></div></div>}
+          {loading && issues.length === 0 && !error && <div className="flex flex-col items-center justify-center py-40 gap-4"><Loader2 size={48} className="animate-spin text-green-500" /><p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Acessando Central de Caieiras...</p></div>}
           {!loading && (
             <div className="animate-fade-in">
               {view === 'dashboard' && (
                 <div className="space-y-12">
-                  <header className="mb-8">
-                    <h1 className="text-3xl font-black text-white tracking-tighter uppercase">Visão Geral Operacional</h1>
-                    <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mt-1">Painel de Monitoramento de Risco e Disponibilidade</p>
-                  </header>
-                  <StatsCards 
-                    issues={issues} 
-                    thermography={thermography} 
-                    onViewGUTDetail={(id) => {
-                      const issue = issues.find(i => i.id === id);
-                      if (issue) { setCurrentIssue(issue); setShowDetails(true); }
-                    }}
-                    onViewThermo={() => setView('thermography')}
-                  />
+                  <header className="mb-8"><h1 className="text-3xl font-black text-white tracking-tighter uppercase">Visão Geral Operacional</h1><p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mt-1">Painel de Monitoramento de Risco e Disponibilidade</p></header>
+                  <StatsCards issues={issues} thermography={thermography} onViewGUTDetail={(id) => { const issue = issues.find(i => i.id === id); if (issue) { setCurrentIssue(issue); setShowDetails(true); } }} onViewThermo={() => setView('thermography')} />
                   <Charts issues={issues} thermography={thermography} areas={areas} settings={settings} />
                 </div>
               )}
-
               {view === 'gut' && (
                 <div className="space-y-8">
-                   {showForm ? (
-                    <div className="animate-slide-up">
-                      <IssueForm 
-                        onSave={handleSaveIssue} 
-                        onCancel={() => {setShowForm(false); setCurrentIssue(null);}} 
-                        onDelete={async (id) => {
-                          if (!isAdmin) { alert("Sem permissão para excluir."); return; }
-                          await issueService.delete(id);
-                          setIssues(prev => prev.filter(i => i.id !== id));
-                          setShowForm(false);
-                          setCurrentIssue(null);
-                        }}
-                        areas={areas.length > 0 ? areas : ["Geral"]}
-                        initialData={currentIssue}
-                        onConnectAI={handleConnectAi}
-                        isAIConnected={aiConnected}
-                      />
-                    </div>
-                  ) : (
-                    <div className="space-y-6">
-                      <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-                        <div>
-                          <h2 className="text-2xl font-black uppercase tracking-tight text-white">Matriz GUT</h2>
-                          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Protocolos de Priorização</p>
-                        </div>
-                        {isEditor && (
-                          <button 
-                            onClick={() => {setCurrentIssue(null); setShowForm(true);}}
-                            className="bg-blue-600 hover:bg-blue-500 text-white px-8 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 shadow-xl shadow-blue-900/20 active:scale-95"
-                          >
-                            <PlusCircle size={16} /> Novo Registro
-                          </button>
-                        )}
-                      </div>
-                      <GUTTable 
-                          issues={issues} 
-                          onStatusChange={async (id, status) => {
-                            if (!isEditor) { alert("Sem permissão para alterar status."); return; }
-                            const updated = await issueService.update(id, { status });
-                            setIssues(prev => prev.map(i => i.id === id ? updated : i));
-                          }}
-                          onEdit={(id) => {
-                            if (!isEditor) return;
-                            const issue = issues.find(i => i.id === id);
-                            if (issue) { setCurrentIssue(issue); setShowForm(true); }
-                          }}
-                          onDetails={(id) => {
-                            const issue = issues.find(i => i.id === id);
-                            if (issue) { setCurrentIssue(issue); setShowDetails(true); }
-                          }}
-                      />
-                    </div>
-                  )}
+                   {showForm ? <IssueForm onSave={handleSaveIssue} onCancel={() => {setShowForm(false); setCurrentIssue(null);}} onDelete={async (id) => { if (!isAdmin) return; await issueService.delete(id); setIssues(prev => prev.filter(i => i.id !== id)); setShowForm(false); }} areas={areas.length > 0 ? areas : ["Geral"]} initialData={currentIssue} onConnectAI={handleConnectAi} isAIConnected={aiConnected} /> : <GUTTable issues={issues} onStatusChange={async (id, status) => { const updated = await issueService.update(id, { status }); setIssues(prev => prev.map(i => i.id === id ? updated : i)); }} onEdit={(id) => { const issue = issues.find(i => i.id === id); if (issue) { setCurrentIssue(issue); setShowForm(true); } }} onDetails={(id) => { const issue = issues.find(i => i.id === id); if (issue) { setCurrentIssue(issue); setShowDetails(true); } }} />}
                 </div>
               )}
-
-              {view === 'thermography' && (
-                <ThermographyManager areas={areas} userRole={currentUser.role} />
-              )}
-
-              {view === 'users' && isAdmin && (
-                <AdminUsers currentUser={currentUser} />
-              )}
-
-              {view === 'areas' && isAdmin && (
-                <AreaManager 
-                  areas={areas} 
-                  onUpdateAreas={() => fetchInitialData()} 
-                  onCancel={() => setView('dashboard')} 
-                  initialSettings={settings}
-                  onUpdateSettings={(s) => setSettings(s)}
-                  currentUser={currentUser}
-                />
-              )}
+              {view === 'thermography' && <ThermographyManager areas={areas} userRole={currentUser.role} onViewEquipmentProfile={onViewProfile} />}
+              {view === 'assets' && <EquipmentBrowser areas={areas} onSelectEquipment={onViewProfile} userRole={currentUser.role} />}
+              {view === 'users' && isAdmin && <AdminUsers currentUser={currentUser} />}
+              {view === 'areas' && isAdmin && <AreaManager areas={areas} onUpdateAreas={() => fetchInitialData()} onCancel={() => setView('dashboard')} initialSettings={settings} onUpdateSettings={(s) => setSettings(s)} currentUser={currentUser} />}
+              {view === 'equipment-profile' && selectedEqName && <EquipmentProfile equipmentName={selectedEqName} onClose={() => setView('assets')} userRole={currentUser.role} />}
+              {view === 'db-setup' && isDev && <DatabaseSetup />}
             </div>
           )}
         </div>
       </main>
-
-      {showDetails && currentIssue && (
-        <DetailsModal issue={currentIssue} onClose={() => setShowDetails(false)} />
-      )}
+      {showDetails && currentIssue && <DetailsModal issue={currentIssue} onClose={() => setShowDetails(false)} />}
     </div>
   );
 }

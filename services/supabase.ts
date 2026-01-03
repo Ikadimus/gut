@@ -18,10 +18,15 @@ export const storageService = {
   async checkBucketExists(): Promise<boolean> {
     try {
       const { data, error } = await supabase.storage.getBucket('attachments');
-      if (error) return false;
+      if (error) {
+        const status = (error as any).status || (error as any).statusCode;
+        if (status === 403) return true; 
+        if (status === 404) return false;
+        return true;
+      }
       return !!data;
     } catch {
-      return false;
+      return true;
     }
   },
 
@@ -42,6 +47,19 @@ export const storageService = {
 
     const { data: { publicUrl } } = supabase.storage.from('attachments').getPublicUrl(filePath);
     return { url: publicUrl, name: file.name };
+  },
+
+  async deleteFile(url: string): Promise<void> {
+    try {
+      const parts = url.split('/attachments/');
+      if (parts.length < 2) return;
+      const path = parts[1];
+      const { error } = await supabase.storage.from('attachments').remove([path]);
+      if (error) throw error;
+    } catch (err) {
+      console.error("Erro ao deletar arquivo do storage:", err);
+      throw new Error("Não foi possível excluir o arquivo físico do servidor.");
+    }
   }
 };
 
@@ -55,8 +73,7 @@ export const userService = {
   async getAll(): Promise<User[]> {
     const { data, error } = await supabase.from('users').select('*').order('name');
     if (error) throw new Error(getErrorMessage(error));
-    // Fixed: access individual record's created_at (d.created_at) inside the map function.
-    return (data || []).map(d => ({ id: String(d.id), name: d.name, email: d.email, role: d.role as UserRole, createdAt: d.created_at }));
+    return (data || []).map(d => ({ id: String(d.id), name: d.name, email: d.email, role: d.role as UserRole, createdAt: data.created_at }));
   },
   async create(user: Omit<User, 'id' | 'createdAt'>): Promise<User> {
     const { data, error } = await supabase.from('users').insert([user]).select().single();
@@ -100,14 +117,19 @@ export const areaService = {
 
 export const equipmentService = {
   async getAllByArea(areaName: string): Promise<Equipment[]> {
-    const { data, error } = await supabase.from('equipments').select('*').eq('area_name', areaName).order('name');
+    const { data, error } = await supabase.from('equipments').select('*').eq('area_name', areaName).order('tag');
     if (error) throw new Error(getErrorMessage(error));
     return (data || []).map(d => this.mapFromDB(d));
   },
   async getAll(): Promise<Equipment[]> {
-    const { data, error } = await supabase.from('equipments').select('*').order('area_name');
+    const { data, error } = await supabase.from('equipments').select('*').order('tag');
     if (error) throw new Error(getErrorMessage(error));
     return (data || []).map(d => this.mapFromDB(d));
+  },
+  async getByName(name: string): Promise<Equipment | null> {
+    const { data, error } = await supabase.from('equipments').select('*').eq('name', name).maybeSingle();
+    if (error || !data) return null;
+    return this.mapFromDB(data);
   },
   async add(equipment: Omit<Equipment, 'id'>): Promise<void> {
     const { error } = await supabase.from('equipments').insert([this.mapToDB(equipment)]);
@@ -123,6 +145,7 @@ export const equipmentService = {
   },
   mapToDB(eq: any) {
     const dbObj: any = {};
+    if (eq.tag !== undefined) dbObj.tag = eq.tag;
     if (eq.name !== undefined) dbObj.name = eq.name;
     if (eq.areaName !== undefined) dbObj.area_name = eq.areaName;
     if (eq.imageUrl !== undefined) dbObj.image_url = eq.imageUrl;
@@ -130,18 +153,27 @@ export const equipmentService = {
     if (eq.maxRotation !== undefined) dbObj.max_rotation = eq.maxRotation;
     if (eq.minTemp !== undefined) dbObj.min_temp = eq.minTemp;
     if (eq.maxTemp !== undefined) dbObj.max_temp = eq.maxTemp;
+    if (eq.lastMaintenance !== undefined) dbObj.last_maintenance = eq.lastMaintenance;
+    if (eq.lastLubrication !== undefined) dbObj.last_lubrication = eq.lastLubrication;
+    if (eq.technicalDescription !== undefined) dbObj.technical_description = eq.technicalDescription;
+    if (eq.installationDate !== undefined) dbObj.installation_date = eq.installationDate;
     return dbObj;
   },
   mapFromDB(db: any): Equipment {
     return {
       id: String(db.id),
+      tag: db.tag || '',
       name: db.name,
       areaName: db.area_name,
       imageUrl: db.image_url,
       minRotation: db.min_rotation,
       maxRotation: db.max_rotation,
       minTemp: db.min_temp,
-      maxTemp: db.max_temp
+      maxTemp: db.max_temp,
+      lastMaintenance: db.last_maintenance,
+      lastLubrication: db.last_lubrication,
+      technicalDescription: db.technical_description,
+      installationDate: db.installation_date
     };
   }
 };
@@ -150,6 +182,11 @@ export const issueService = {
   async getAll(): Promise<GUTIssue[]> {
     const { data, error } = await supabase.from('issues').select('*').order('score', { ascending: false });
     if (error) throw new Error(getErrorMessage(error));
+    return (data || []).map(item => this.mapFromDB(item));
+  },
+  async getByEquipment(name: string): Promise<GUTIssue[]> {
+    const { data, error } = await supabase.from('issues').select('*').eq('equipment_name', name).order('created_at', { ascending: false });
+    if (error) return [];
     return (data || []).map(item => this.mapFromDB(item));
   },
   async create(issue: Omit<GUTIssue, 'id' | 'createdAt'>): Promise<GUTIssue> {
@@ -170,8 +207,9 @@ export const issueService = {
     const dbObj: any = {};
     if (issue.title !== undefined) dbObj.title = issue.title;
     if (issue.description !== undefined) dbObj.description = issue.description;
-    if (issue.immediateAction !== undefined) dbObj.immediate_action = issue.immediateAction;
+    if (issue.immediateAction !== undefined) dbObj.immediate_action = issue.immediate_action;
     if (issue.area !== undefined) dbObj.area = issue.area;
+    if (issue.equipmentName !== undefined) dbObj.equipment_name = issue.equipmentName;
     if (issue.gravity !== undefined) dbObj.gravity = issue.gravity;
     if (issue.urgency !== undefined) dbObj.urgency = issue.urgency;
     if (issue.tendency !== undefined) dbObj.tendency = issue.tendency;
@@ -190,6 +228,7 @@ export const issueService = {
       description: dbIssue.description || '',
       immediateAction: dbIssue.immediate_action || '',
       area: dbIssue.area || '',
+      equipmentName: dbIssue.equipment_name,
       gravity: dbIssue.gravity || 1,
       urgency: dbIssue.urgency || 1,
       tendency: dbIssue.tendency || 1,
@@ -204,6 +243,58 @@ export const issueService = {
   }
 };
 
+export const thermographyService = {
+  async getAll(): Promise<ThermographyRecord[]> {
+    const { data, error } = await supabase.from('thermography').select('*').order('created_at', { ascending: false });
+    if (error) throw new Error(getErrorMessage(error));
+    return (data || []).map(d => this.mapFromDB(d));
+  },
+  async getByEquipment(name: string): Promise<ThermographyRecord[]> {
+    const { data, error } = await supabase.from('thermography').select('*').eq('equipment_name', name).order('created_at', { ascending: false });
+    if (error) return [];
+    return (data || []).map(d => this.mapFromDB(d));
+  },
+  async create(record: Omit<ThermographyRecord, 'id' | 'createdAt'>): Promise<ThermographyRecord> {
+    const { data, error } = await supabase.from('thermography').insert([{ 
+      equipment_name: record.equipmentName, 
+      area: record.area, 
+      current_temp: record.currentTemp, 
+      max_temp: record.maxTemp, 
+      min_temp: record.minTemp, 
+      last_inspection: record.lastInspection, 
+      notes: record.notes, 
+      attachment_url: record.attachmentUrl, 
+      attachment_name: record.attachmentName, 
+      ai_analysis: record.aiAnalysis, 
+      ai_recommendation: record.aiRecommendation, 
+      risk_level: record.riskLevel 
+    }]).select().single();
+    if (error) throw new Error(getErrorMessage(error));
+    return this.mapFromDB(data);
+  },
+  async delete(id: string): Promise<void> {
+    await supabase.from('thermography').delete().eq('id', id);
+  },
+  mapFromDB(d: any): ThermographyRecord {
+    return {
+      id: String(d.id), 
+      equipmentName: d.equipment_name, 
+      area: d.area, 
+      currentTemp: d.current_temp, 
+      maxTemp: d.max_temp, 
+      minTemp: d.min_temp, 
+      lastInspection: d.last_inspection, 
+      createdAt: d.created_at, // O campo real do Supabase
+      notes: d.notes, 
+      attachmentUrl: d.attachment_url, 
+      attachmentName: d.attachment_name, 
+      aiAnalysis: d.ai_analysis, 
+      aiRecommendation: d.ai_recommendation, 
+      riskLevel: d.risk_level
+    };
+  }
+};
+
 export const settingsService = {
   async get(): Promise<SystemSettings> {
     const defaults: SystemSettings = { criticalThreshold: 250, warningThreshold: 100, individualCriticalThreshold: 80, individualWarningThreshold: 40, accentColor: '#10b981', colorNormal: '#10b981', colorWarning: '#f59e0b', colorCritical: '#ef4444' };
@@ -212,7 +303,6 @@ export const settingsService = {
     return { 
       id: data.id, 
       criticalThreshold: data.critical_threshold, 
-      // Fixed: Mapped warning_threshold from DB to warningThreshold to match the SystemSettings interface.
       warningThreshold: data.warning_threshold, 
       individualCriticalThreshold: data.individual_critical_threshold, 
       individualWarningThreshold: data.individual_warning_threshold, 
@@ -226,23 +316,5 @@ export const settingsService = {
     const payload = { critical_threshold: settings.criticalThreshold, warning_threshold: settings.warningThreshold, individual_critical_threshold: settings.individualCriticalThreshold, individual_warning_threshold: settings.individualWarningThreshold, accent_color: settings.accentColor, color_normal: settings.colorNormal, color_warning: settings.colorWarning, color_critical: settings.colorCritical };
     if (settings.id) await supabase.from('settings').update(payload).eq('id', settings.id);
     else await supabase.from('settings').insert([payload]);
-  }
-};
-
-export const thermographyService = {
-  async getAll(): Promise<ThermographyRecord[]> {
-    const { data, error } = await supabase.from('thermography').select('*').order('created_at', { ascending: false });
-    if (error) throw new Error(getErrorMessage(error));
-    return (data || []).map(d => ({
-      id: String(d.id), equipmentName: d.equipment_name, area: d.area, currentTemp: d.current_temp, maxTemp: d.max_temp, minTemp: d.min_temp, lastInspection: d.last_inspection, notes: d.notes, attachmentUrl: d.attachment_url, attachmentName: d.attachment_name, aiAnalysis: d.ai_analysis, aiRecommendation: d.ai_recommendation, riskLevel: d.risk_level
-    }));
-  },
-  async create(record: Omit<ThermographyRecord, 'id'>): Promise<ThermographyRecord> {
-    const { data, error } = await supabase.from('thermography').insert([{ equipment_name: record.equipmentName, area: record.area, current_temp: record.currentTemp, max_temp: record.max_temp, min_temp: record.min_temp, last_inspection: record.lastInspection, notes: record.notes, attachment_url: record.attachmentUrl, attachment_name: record.attachmentName, ai_analysis: record.aiAnalysis, ai_recommendation: record.aiRecommendation, risk_level: record.riskLevel }]).select().single();
-    if (error) throw new Error(getErrorMessage(error));
-    return { id: String(data.id), ...record };
-  },
-  async delete(id: string): Promise<void> {
-    await supabase.from('thermography').delete().eq('id', id);
   }
 };

@@ -8,14 +8,9 @@ export const analyzeIssueWithAI = async (
   area: string,
   immediateAction: string
 ): Promise<AIScoringResult | null> => {
-  const apiKey = process.env.API_KEY;
-
-  if (!apiKey || apiKey === "undefined" || apiKey === "") {
-    throw new Error("API_KEY_NOT_FOUND: Chave de API não configurada.");
-  }
-
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+    // Initializing Gemini API with direct usage of the environment variable API_KEY
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
     const prompt = `
       Você é um Engenheiro Sênior de Processos em uma Usina de Purificação de Biometano.
@@ -34,8 +29,8 @@ export const analyzeIssueWithAI = async (
       Mantenha os textos curtos e técnicos.
     `;
 
+    // Using gemini-3-pro-preview for complex engineering evaluation
     const response: GenerateContentResponse = await ai.models.generateContent({
-      // Upgraded to gemini-3-pro-preview for complex engineering evaluation tasks.
       model: "gemini-3-pro-preview",
       contents: prompt,
       config: {
@@ -54,6 +49,7 @@ export const analyzeIssueWithAI = async (
       },
     });
 
+    // Directly accessing .text property from the response
     const text = response.text;
     if (!text) throw new Error("A IA retornou uma resposta vazia.");
 
@@ -72,14 +68,9 @@ export const analyzeThermographyWithAI = async (
   minTemp: number,
   notes: string
 ): Promise<AIThermographyResult | null> => {
-  const apiKey = process.env.API_KEY;
-
-  if (!apiKey || apiKey === "undefined" || apiKey === "") {
-    throw new Error("API_KEY_NOT_FOUND: Chave de API não configurada.");
-  }
-
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+    // Initializing Gemini API with direct usage of the environment variable API_KEY
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
     const prompt = `
       Você é um Engenheiro Especialista em Termografia e Manutenção Preditiva para Usinas de Biometano (Essencis Caieiras).
@@ -106,8 +97,8 @@ export const analyzeThermographyWithAI = async (
       Mantenha um tom profissional e diagnóstico.
     `;
 
+    // Using gemini-3-pro-preview for complex reasoning and diagnosis
     const response: GenerateContentResponse = await ai.models.generateContent({
-      // Upgraded to gemini-3-pro-preview for advanced diagnostic reasoning.
       model: "gemini-3-pro-preview",
       contents: prompt,
       config: {
@@ -118,8 +109,8 @@ export const analyzeThermographyWithAI = async (
             analysis: { type: Type.STRING },
             recommendation: { type: Type.STRING },
             riskLevel: { 
-              type: Type.STRING, 
-              enum: ['Baixo', 'Moderado', 'Alto', 'Crítico'] 
+              type: Type.STRING,
+              description: "Must be one of: 'Baixo', 'Moderado', 'Alto', 'Crítico'."
             },
           },
           required: ["analysis", "recommendation", "riskLevel"],
@@ -127,6 +118,7 @@ export const analyzeThermographyWithAI = async (
       },
     });
 
+    // Directly accessing .text property from the response
     const text = response.text;
     if (!text) throw new Error("A IA retornou uma resposta vazia.");
 

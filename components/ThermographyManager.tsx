@@ -3,14 +3,15 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ThermographyRecord, UserRole, Equipment } from '../types';
 import { thermographyService, storageService, equipmentService } from '../services/supabase';
 import { analyzeThermographyWithAI } from '../services/geminiService';
-import { Thermometer, Plus, Trash2, Camera, MapPin, Gauge, Loader2, Save, X, Paperclip, FileText, TrendingUp, AlertTriangle, Sparkles, Bot, ShieldCheck, Cpu, Eye, Info, ExternalLink, CloudSun, Activity } from 'lucide-react';
+import { Thermometer, Plus, Trash2, Camera, MapPin, Gauge, Loader2, Save, X, Paperclip, FileText, TrendingUp, AlertTriangle, Sparkles, Bot, ShieldCheck, Cpu, Eye, Info, ExternalLink, CloudSun, Activity, Clock, History } from 'lucide-react';
 
 interface ThermographyManagerProps {
   areas: string[];
   userRole: UserRole;
+  onViewEquipmentProfile?: (name: string) => void;
 }
 
-export const ThermographyManager: React.FC<ThermographyManagerProps> = ({ areas, userRole }) => {
+export const ThermographyManager: React.FC<ThermographyManagerProps> = ({ areas, userRole, onViewEquipmentProfile }) => {
   const [records, setRecords] = useState<ThermographyRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -18,11 +19,9 @@ export const ThermographyManager: React.FC<ThermographyManagerProps> = ({ areas,
   const [uploading, setUploading] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   
-  // Equipments list based on area
   const [availableEquipments, setAvailableEquipments] = useState<Equipment[]>([]);
   const [selectedEquipment, setSelectedEquipment] = useState<Equipment | null>(null);
 
-  // Form states
   const [equipmentName, setEquipmentName] = useState('');
   const [area, setArea] = useState(areas[0] || '');
   const [currentTemp, setCurrentTemp] = useState(40);
@@ -51,7 +50,6 @@ export const ThermographyManager: React.FC<ThermographyManagerProps> = ({ areas,
     }
   }, [area]);
 
-  // Efeito para carregar o DNA do Ativo quando selecionado
   useEffect(() => {
     if (equipmentName) {
       const eq = availableEquipments.find(e => e.name === equipmentName);
@@ -63,7 +61,7 @@ export const ThermographyManager: React.FC<ThermographyManagerProps> = ({ areas,
     } else {
       setSelectedEquipment(null);
     }
-  }, [equipmentName]);
+  }, [equipmentName, availableEquipments]);
 
   const fetchRecords = async () => {
     try {
@@ -81,7 +79,24 @@ export const ThermographyManager: React.FC<ThermographyManagerProps> = ({ areas,
       const result = await storageService.uploadFile(file, 'thermography');
       setAttachmentUrl(result.url);
       setAttachmentName(result.name);
+    } catch (err: any) {
+      alert("Erro ao enviar arquivo: " + err.message);
     } finally { setUploading(false); }
+  };
+
+  const removeAttachment = async () => {
+    if (!attachmentUrl) return;
+    if (confirm("Deseja realmente excluir este anexo permanentemente do servidor?")) {
+      try {
+        setUploading(true);
+        await storageService.deleteFile(attachmentUrl);
+        setAttachmentUrl('');
+        setAttachmentName('');
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      } catch (err: any) {
+        alert("Erro ao remover arquivo: " + err.message);
+      } finally { setUploading(false); }
+    }
   };
 
   const handleAIAnalysis = async () => {
@@ -183,9 +198,16 @@ export const ThermographyManager: React.FC<ThermographyManagerProps> = ({ areas,
                       )}
                    </div>
                    <div className="flex-1 space-y-3">
-                      <div className="flex items-center gap-2">
-                         <h4 className="text-xs font-black text-white uppercase tracking-widest">DNA do Ativo Carregado</h4>
-                         <span className="px-2 py-0.5 bg-green-900/20 text-green-500 text-[8px] font-black uppercase rounded border border-green-800/30">Sync OK</span>
+                      <div className="flex items-center justify-between">
+                         <div className="flex items-center gap-2">
+                            <h4 className="text-xs font-black text-white uppercase tracking-widest">DNA do Ativo Carregado</h4>
+                            <span className="px-2 py-0.5 bg-green-900/20 text-green-500 text-[8px] font-black uppercase rounded border border-green-800/30">Sync OK</span>
+                         </div>
+                         {onViewEquipmentProfile && (
+                           <button type="button" onClick={() => onViewEquipmentProfile(selectedEquipment.name)} className="text-[9px] font-black text-blue-400 uppercase tracking-widest hover:text-white transition-colors flex items-center gap-1">
+                             <History size={12} /> Perfil Profundo
+                           </button>
+                         )}
                       </div>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                          <div className="space-y-1">
@@ -246,7 +268,6 @@ export const ThermographyManager: React.FC<ThermographyManagerProps> = ({ areas,
             <div className="lg:col-span-1 flex flex-col gap-6">
                <div className="bg-slate-950 p-6 rounded-[2rem] border border-slate-800 space-y-8 shadow-inner">
                   <h4 className="text-[9px] font-black text-slate-500 uppercase text-center tracking-widest">Parâmetros Atuais</h4>
-                  
                   <div className="space-y-7">
                       <div className="space-y-2">
                         <div className="flex justify-between text-[10px] font-black text-slate-400">
@@ -255,7 +276,6 @@ export const ThermographyManager: React.FC<ThermographyManagerProps> = ({ areas,
                         </div>
                         <input type="range" min="0" max="60" value={minTemp} onChange={e => setMinTemp(Number(e.target.value))} className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500" />
                       </div>
-
                       <div className="space-y-2">
                         <div className="flex justify-between text-[10px] font-black text-slate-400">
                           <span className="flex items-center gap-1"><Gauge size={12} className="text-orange-400" /> Temp. Atual</span>
@@ -263,7 +283,6 @@ export const ThermographyManager: React.FC<ThermographyManagerProps> = ({ areas,
                         </div>
                         <input type="range" min="0" max="150" value={currentTemp} onChange={e => setCurrentTemp(Number(e.target.value))} className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-orange-500" />
                       </div>
-
                       <div className="space-y-2">
                         <div className="flex justify-between text-[10px] font-black text-slate-400">
                           <span className="flex items-center gap-1"><AlertTriangle size={12} className="text-red-400" /> Limite Ativo</span>
@@ -272,16 +291,28 @@ export const ThermographyManager: React.FC<ThermographyManagerProps> = ({ areas,
                         <input type="range" min="30" max="180" value={maxTemp} onChange={e => setMaxTemp(Number(e.target.value))} className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-red-500" />
                       </div>
                   </div>
-
                   <div className="pt-4 border-t border-slate-800">
-                    <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading} className="w-full border-2 border-dashed border-slate-800 rounded-2xl py-6 flex flex-col items-center gap-2 text-slate-600 hover:border-orange-500/50 hover:text-orange-400 transition-all group">
-                        {uploading ? <Loader2 size={24} className="animate-spin text-orange-500" /> : <Camera size={24} className="group-hover:scale-110 transition-transform" />}
-                        <span className="text-[9px] font-black uppercase tracking-widest">{attachmentName || 'Capturar Imagem Térmica'}</span>
-                        <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} />
-                    </button>
+                    {attachmentUrl ? (
+                      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
+                        <div className="flex items-center gap-3 truncate">
+                          <Camera size={20} className="text-orange-500 shrink-0" />
+                          <span className="text-[9px] font-black text-slate-300 truncate uppercase tracking-widest">{attachmentName}</span>
+                        </div>
+                        <button type="button" onClick={removeAttachment} disabled={uploading} className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg transition-all">
+                          {uploading ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                        </button>
+                      </div>
+                    ) : (
+                      <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading} className="w-full border-2 border-dashed border-slate-800 rounded-2xl py-6 flex flex-col items-center gap-2 text-slate-600 hover:border-orange-500/50 hover:text-orange-400 transition-all group">
+                          {uploading ? <Loader2 size={24} className="animate-spin text-orange-500" /> : <Camera size={24} className="group-hover:scale-110 transition-transform" />}
+                          <span className="text-[9px] font-black uppercase tracking-widest">Capturar Imagem Térmica</span>
+                          <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} />
+                      </button>
+                    )}
                   </div>
-
-                  <button type="submit" className="w-full bg-orange-600 hover:bg-orange-500 text-white py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-orange-900/30 transition-all active:scale-95">Salvar Laudo</button>
+                  <button type="submit" disabled={loading} className="w-full bg-orange-600 hover:bg-orange-500 text-white py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-orange-900/30 transition-all active:scale-95 disabled:opacity-50">
+                    {loading ? <Loader2 size={16} className="animate-spin" /> : 'Salvar Laudo'}
+                  </button>
                </div>
             </div>
           </form>
@@ -301,7 +332,6 @@ export const ThermographyManager: React.FC<ThermographyManagerProps> = ({ areas,
               const stress = record.currentTemp / record.maxTemp;
               const isCritical = record.currentTemp >= record.maxTemp;
               const isWarning = stress >= 0.8 && !isCritical;
-              
               return (
                 <div key={record.id} className="bg-slate-900 border border-slate-800 rounded-[2rem] overflow-hidden group hover:border-orange-500/30 transition-all shadow-xl hover:shadow-orange-500/5">
                   <div className="p-7 space-y-6">
@@ -322,7 +352,6 @@ export const ThermographyManager: React.FC<ThermographyManagerProps> = ({ areas,
                         )}
                       </div>
                     </div>
-                    
                     <div className="flex items-end justify-between">
                        <div>
                           <p className="text-[8px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">Temperatura de Operação</p>
@@ -338,14 +367,12 @@ export const ThermographyManager: React.FC<ThermographyManagerProps> = ({ areas,
                           <p className="text-sm font-black text-slate-400 font-mono">{record.maxTemp}°C</p>
                        </div>
                     </div>
-
                     <div className="w-full h-1.5 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
                        <div 
                          className={`h-full transition-all duration-1000 ${isCritical ? 'bg-red-500' : isWarning ? 'bg-orange-500' : 'bg-green-500'}`} 
                          style={{ width: `${Math.min(100, (record.currentTemp / record.maxTemp) * 100)}%` }}
                        ></div>
                     </div>
-
                     <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest">
                        <span className="text-slate-600">{new Date(record.lastInspection).toLocaleDateString()}</span>
                        <span className={`px-2.5 py-1 rounded-lg border ${isCritical ? 'bg-red-950/20 border-red-900/50 text-red-500' : isWarning ? 'bg-orange-950/20 border-orange-900/50 text-orange-500' : 'bg-green-950/20 border-green-900/50 text-green-500'}`}>
@@ -360,15 +387,20 @@ export const ThermographyManager: React.FC<ThermographyManagerProps> = ({ areas,
         </div>
       )}
 
-      {/* MODAL DE DETALHES DA TERMOGRAFIA - SEM ALTERAÇÕES NESTA VERSÃO */}
       {showDetails && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-950/95 backdrop-blur-md animate-fade-in">
            <div className="bg-slate-900 border border-slate-800 w-full max-w-4xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-slide-up flex flex-col lg:flex-row max-h-[90vh]">
-              
               <div className="lg:w-1/3 bg-slate-950 p-8 flex flex-col border-r border-slate-800">
                  <div className="mb-6">
-                    <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter mb-1">{showDetails.equipmentName}</h3>
-                    <p className="text-[10px] text-slate-500 font-black uppercase tracking-[0.2em]">{showDetails.area}</p>
+                    <div className="flex justify-between items-start">
+                       <div>
+                          <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter mb-1">{showDetails.equipmentName}</h3>
+                          <p className="text-[10px] text-slate-500 font-black uppercase tracking-[0.2em]">{showDetails.area}</p>
+                       </div>
+                       {onViewEquipmentProfile && (
+                         <button onClick={() => { onViewEquipmentProfile(showDetails.equipmentName); setShowDetails(null); }} className="text-blue-500 hover:text-white transition-all"><History size={18}/></button>
+                       )}
+                    </div>
                  </div>
 
                  {showDetails.attachmentUrl ? (
@@ -413,6 +445,17 @@ export const ThermographyManager: React.FC<ThermographyManagerProps> = ({ areas,
                  </div>
 
                  <div className="space-y-8">
+                    {/* INFO DE DATA E HORA REAL */}
+                    <div className="bg-slate-950/50 border border-slate-800 p-4 rounded-2xl flex items-center justify-between">
+                       <div className="flex items-center gap-3">
+                          <Clock size={16} className="text-blue-400" />
+                          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Data e Hora do Laudo:</span>
+                       </div>
+                       <span className="text-xs font-black text-slate-100">
+                          {new Date(showDetails.createdAt).toLocaleString('pt-BR', { dateStyle: 'long', timeStyle: 'short' })}
+                       </span>
+                    </div>
+
                     <div className="space-y-3">
                        <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
                           <Bot size={14} className="text-purple-400" /> Parecer Digital (IA Core)
@@ -443,8 +486,13 @@ export const ThermographyManager: React.FC<ThermographyManagerProps> = ({ areas,
                     )}
                  </div>
 
-                 <div className="mt-auto pt-10 flex justify-end">
-                    <button onClick={() => setShowDetails(null)} className="ml-auto bg-slate-800 px-8 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest text-white hover:bg-slate-700 transition-all">Fechar Laudo</button>
+                 <div className="mt-auto pt-10 flex justify-end gap-3">
+                    {onViewEquipmentProfile && (
+                       <button onClick={() => { onViewEquipmentProfile(showDetails.equipmentName); setShowDetails(null); }} className="bg-blue-600 px-8 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest text-white hover:bg-blue-500 transition-all flex items-center gap-2">
+                          <History size={14}/> Ver Histórico Completo
+                       </button>
+                    )}
+                    <button onClick={() => setShowDetails(null)} className="bg-slate-800 px-8 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest text-white hover:bg-slate-700 transition-all">Fechar Laudo</button>
                  </div>
               </div>
            </div>

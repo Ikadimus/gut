@@ -1,5 +1,8 @@
+
 {
   "name": "BIOMETANO GUT Matriz",
   "description": "A prioritization system (Gravity, Urgency, Tendency) for Biomethane Purification Plants with AI-assisted risk analysis.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [
+    "camera"
+  ]
 }

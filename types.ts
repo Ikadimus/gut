@@ -35,13 +35,18 @@ export interface User {
 
 export interface Equipment {
   id: string;
-  name: string;
+  tag: string; // Identificador técnico (ex: P-101)
+  name: string; // Nome amigável (ex: Bomba de Recalque)
   areaName: string;
   imageUrl?: string;
   minRotation?: number;
   maxRotation?: number;
   minTemp?: number;
   maxTemp?: number;
+  lastMaintenance?: string;
+  lastLubrication?: string;
+  technicalDescription?: string;
+  installationDate?: string;
 }
 
 export interface GUTIssue {
@@ -50,10 +55,11 @@ export interface GUTIssue {
   description: string;
   immediateAction?: string;
   area: string;
-  gravity: number; // 1-5
-  urgency: number; // 1-5
-  tendency: number; // 1-5
-  score: number; // G * U * T
+  equipmentName?: string; // Vinculação com equipamento
+  gravity: number;
+  urgency: number;
+  tendency: number;
+  score: number;
   status: Status;
   createdAt: string;
   aiSuggestion?: string;
@@ -84,6 +90,7 @@ export interface ThermographyRecord {
   maxTemp: number;
   minTemp: number;
   lastInspection: string;
+  createdAt: string; // Adicionado para rastreio real
   notes?: string;
   attachmentUrl?: string;
   attachmentName?: string;
