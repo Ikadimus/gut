@@ -20,10 +20,16 @@ export const EquipmentProfile: React.FC<EquipmentProfileProps> = ({ equipmentNam
 
   // Edit fields
   const [tag, setTag] = useState('');
+  const [name, setName] = useState('');
   const [lastLub, setLastLub] = useState('');
   const [lastMaint, setLastMaint] = useState('');
   const [techDesc, setTechDesc] = useState('');
   const [imageUrl, setImageUrl] = useState('');
+  const [minRot, setMinRot] = useState(0);
+  const [maxRot, setMaxRot] = useState(3600);
+  const [minTemp, setMinTemp] = useState(20);
+  const [maxTemp, setMaxTemp] = useState(85);
+  const [installDate, setInstallDate] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isEditor = userRole !== UserRole.VIEWER;
@@ -46,10 +52,16 @@ export const EquipmentProfile: React.FC<EquipmentProfileProps> = ({ equipmentNam
       
       if (eq) {
         setTag(eq.tag || '');
+        setName(eq.name);
         setLastLub(eq.lastLubrication || '');
         setLastMaint(eq.lastMaintenance || '');
         setTechDesc(eq.technicalDescription || '');
         setImageUrl(eq.imageUrl || '');
+        setMinRot(eq.minRotation || 0);
+        setMaxRot(eq.maxRotation || 3600);
+        setMinTemp(eq.minTemp || 20);
+        setMaxTemp(eq.maxTemp || 85);
+        setInstallDate(eq.installationDate || '');
       }
     } finally {
       setLoading(false);
@@ -63,28 +75,34 @@ export const EquipmentProfile: React.FC<EquipmentProfileProps> = ({ equipmentNam
       setUploading(true);
       const result = await storageService.uploadFile(file, 'assets');
       setImageUrl(result.url);
-    } catch (err) {
-      alert("Erro ao carregar nova foto.");
+    } catch (err: any) {
+      alert("Erro ao carregar nova foto: " + err.message);
     } finally {
       setUploading(false);
     }
   };
 
-  const handleUpdateMaintenance = async () => {
+  const handleUpdateAsset = async () => {
     if (!equipment) return;
     try {
       setLoading(true);
       await equipmentService.update(equipment.id, {
-        tag: tag,
+        tag: tag.trim(),
+        name: name.trim(),
         lastLubrication: lastLub,
         lastMaintenance: lastMaint,
         technicalDescription: techDesc,
-        imageUrl: imageUrl
+        imageUrl: imageUrl,
+        minRotation: minRot,
+        maxRotation: maxRot,
+        minTemp: minTemp,
+        maxTemp: maxTemp,
+        installationDate: installDate
       });
       await fetchData();
       setEditing(false);
-    } catch (err) {
-      alert("Erro ao atualizar dados do ativo.");
+    } catch (err: any) {
+      alert("Erro crítico ao atualizar ativo: " + err.message);
     } finally {
       setLoading(false);
     }
@@ -106,7 +124,6 @@ export const EquipmentProfile: React.FC<EquipmentProfileProps> = ({ equipmentNam
 
   return (
     <div className="animate-fade-in space-y-12">
-       {/* HEADER DO PERFIL (Agora integrado ao fluxo) */}
        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-slate-800 pb-8">
           <div className="flex items-center gap-6">
              <button onClick={onClose} className="p-4 bg-slate-900 hover:bg-slate-800 rounded-2xl text-slate-500 transition-all group">
@@ -125,14 +142,12 @@ export const EquipmentProfile: React.FC<EquipmentProfileProps> = ({ equipmentNam
           {isEditor && (
             <button onClick={() => setEditing(!editing)} className={`px-8 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 ${editing ? 'bg-red-900/30 text-red-500 border border-red-900/50' : 'bg-blue-600 text-white shadow-xl shadow-blue-900/20'}`}>
               {editing ? <X size={16}/> : <Wrench size={16}/>}
-              {editing ? 'Cancelar Edição' : 'Atualizar Manutenção'}
+              {editing ? 'Cancelar Edição' : 'Atualizar Ativo'}
             </button>
           )}
        </div>
 
        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-          
-          {/* COLUNA ESQUERDA: STATUS & DNA */}
           <div className="lg:col-span-4 space-y-8">
              <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] overflow-hidden shadow-2xl sticky top-8">
                 <div className={`aspect-video bg-slate-950 relative group ${editing ? 'cursor-pointer' : ''}`} onClick={() => editing && fileInputRef.current?.click()}>
@@ -148,7 +163,6 @@ export const EquipmentProfile: React.FC<EquipmentProfileProps> = ({ equipmentNam
                         <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest text-center px-4">Alterar Foto do Ativo</span>
                      </div>
                    )}
-
                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900 to-transparent pointer-events-none"></div>
                    {!editing && (
                      <div className="absolute bottom-6 left-6">
@@ -162,11 +176,19 @@ export const EquipmentProfile: React.FC<EquipmentProfileProps> = ({ equipmentNam
                    <div className="grid grid-cols-2 gap-4">
                       <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 text-center">
                          <p className="text-[9px] font-black text-slate-600 uppercase mb-1">Rotação Max</p>
-                         <p className="text-xl font-black text-blue-400">{equipment.maxRotation || 'N/A'} <span className="text-[10px] uppercase">RPM</span></p>
+                         {editing ? (
+                            <input type="number" value={maxRot} onChange={e => setMaxRot(Number(e.target.value))} className="w-full bg-slate-900 border border-slate-700 text-xs text-blue-400 p-1 rounded font-black outline-none" />
+                         ) : (
+                            <p className="text-xl font-black text-blue-400">{equipment.maxRotation || '0'} <span className="text-[10px] uppercase">RPM</span></p>
+                         )}
                       </div>
                       <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 text-center">
                          <p className="text-[9px] font-black text-slate-600 uppercase mb-1">Temp. Max</p>
-                         <p className="text-xl font-black text-red-400">{equipment.maxTemp || 'N/A'} <span className="text-[10px] uppercase">°C</span></p>
+                         {editing ? (
+                            <input type="number" value={maxTemp} onChange={e => setMaxTemp(Number(e.target.value))} className="w-full bg-slate-900 border border-slate-700 text-xs text-red-400 p-1 rounded font-black outline-none" />
+                         ) : (
+                            <p className="text-xl font-black text-red-400">{equipment.maxTemp || '0'} <span className="text-[10px] uppercase">°C</span></p>
+                         )}
                       </div>
                    </div>
 
@@ -220,7 +242,7 @@ export const EquipmentProfile: React.FC<EquipmentProfileProps> = ({ equipmentNam
                    </div>
 
                    {editing && (
-                     <button onClick={handleUpdateMaintenance} disabled={loading} className="w-full bg-green-600 hover:bg-green-500 py-4 rounded-2xl text-white font-black uppercase text-[10px] tracking-widest shadow-xl shadow-green-900/20 active:scale-95 transition-all flex items-center justify-center gap-2">
+                     <button onClick={handleUpdateAsset} disabled={loading} className="w-full bg-green-600 hover:bg-green-500 py-4 rounded-2xl text-white font-black uppercase text-[10px] tracking-widest shadow-xl shadow-green-900/20 active:scale-95 transition-all flex items-center justify-center gap-2">
                         {loading ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                         Salvar Alterações
                      </button>
@@ -229,10 +251,7 @@ export const EquipmentProfile: React.FC<EquipmentProfileProps> = ({ equipmentNam
              </div>
           </div>
 
-          {/* COLUNA DIREITA: TIMELINE & HISTÓRICOS */}
           <div className="lg:col-span-8 space-y-10">
-             
-             {/* HISTÓRICO TÉRMICO */}
              <div className="bg-slate-900/40 border border-slate-800 rounded-[2.5rem] p-10 shadow-2xl">
                 <div className="flex items-center justify-between mb-8">
                    <div className="flex items-center gap-4">
@@ -280,7 +299,6 @@ export const EquipmentProfile: React.FC<EquipmentProfileProps> = ({ equipmentNam
                 </div>
              </div>
 
-             {/* HISTÓRICO GUT / FALHAS */}
              <div className="bg-slate-900/40 border border-slate-800 rounded-[2.5rem] p-10 shadow-2xl">
                 <div className="flex items-center justify-between mb-8">
                    <div className="flex items-center gap-4">
@@ -320,7 +338,6 @@ export const EquipmentProfile: React.FC<EquipmentProfileProps> = ({ equipmentNam
                    )}
                 </div>
              </div>
-
           </div>
        </div>
     </div>

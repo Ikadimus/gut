@@ -9,7 +9,6 @@ export const analyzeIssueWithAI = async (
   immediateAction: string
 ): Promise<AIScoringResult | null> => {
   try {
-    // Initializing Gemini API with direct usage of the environment variable API_KEY
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
     const prompt = `
@@ -29,7 +28,6 @@ export const analyzeIssueWithAI = async (
       Mantenha os textos curtos e técnicos.
     `;
 
-    // Using gemini-3-pro-preview for complex engineering evaluation
     const response: GenerateContentResponse = await ai.models.generateContent({
       model: "gemini-3-pro-preview",
       contents: prompt,
@@ -49,7 +47,6 @@ export const analyzeIssueWithAI = async (
       },
     });
 
-    // Directly accessing .text property from the response
     const text = response.text;
     if (!text) throw new Error("A IA retornou uma resposta vazia.");
 
@@ -69,7 +66,6 @@ export const analyzeThermographyWithAI = async (
   notes: string
 ): Promise<AIThermographyResult | null> => {
   try {
-    // Initializing Gemini API with direct usage of the environment variable API_KEY
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
     const prompt = `
@@ -84,11 +80,6 @@ export const analyzeThermographyWithAI = async (
       - Temperatura de Referência (Mín/Ambiente): ${minTemp}°C
       - RELATO DE CAMPO: ${notes || "O operador não informou sintomas adicionais."}
 
-      INSTRUÇÕES CRÍTICAS:
-      1. Use o RELATO DE CAMPO para correlacionar a temperatura com possíveis falhas mecânicas ou elétricas. Se o operador citar "ruído", considere falha de rolamento ou atrito. Se citar "cheiro", considere queima de isolamento.
-      2. Analise o "Delta T" (Atual - Referência).
-      3. Seja específico sobre riscos ao processo de purificação de biogás.
-
       REQUISITOS DE RESPOSTA (JSON):
       - analysis: Explicação técnica correlacionando os dados térmicos e o relato de campo. Máximo 300 caracteres.
       - recommendation: Ações de manutenção imediatas e preventivas.
@@ -97,7 +88,6 @@ export const analyzeThermographyWithAI = async (
       Mantenha um tom profissional e diagnóstico.
     `;
 
-    // Using gemini-3-pro-preview for complex reasoning and diagnosis
     const response: GenerateContentResponse = await ai.models.generateContent({
       model: "gemini-3-pro-preview",
       contents: prompt,
@@ -118,7 +108,6 @@ export const analyzeThermographyWithAI = async (
       },
     });
 
-    // Directly accessing .text property from the response
     const text = response.text;
     if (!text) throw new Error("A IA retornou uma resposta vazia.");
 
@@ -126,5 +115,50 @@ export const analyzeThermographyWithAI = async (
   } catch (error: any) {
     console.error("Erro na IA Termográfica:", error);
     throw new Error(error.message || "Falha técnica na análise térmica da IA.");
+  }
+};
+
+export const explainSystemToUser = async (question: string, userName: string): Promise<string> => {
+  try {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+    const context = `
+      Você é a "BIOHUB", a Central de Inteligência e Wiki técnica da plataforma "Biometano GUT Matrix".
+      Seu objetivo é guiar o usuário ${userName} exclusivamente sobre o funcionamento do sistema e metodologias aplicadas.
+
+      RESTRICÇÕES CRÍTICAS (LEIA COM ATENÇÃO):
+      - Você NÃO tem sensores em tempo real na planta física.
+      - Você NÃO conhece o estado atual da usina além dos registros salvos no banco de dados deste sistema.
+      - Se o usuário perguntar algo sobre a planta que não está no sistema (ex: "como está a pressão agora?"), você deve responder que não possui acesso a telemetria externa direta e que ele deve consultar os painéis do PLC ou os registros de campo no sistema.
+
+      SUA IDENTIDADE:
+      - Nome: BIOHUB.
+      - Papel: Wiki do Sistema, Consultora de Metodologia GUT e Guia de Interface.
+      - Personalidade: Extremamente técnica, organizada e transparente sobre suas limitações.
+
+      REGRAS DE RESPOSTA:
+      1. Sempre comece a primeira resposta saudando o usuário: "Olá ${userName}!".
+      2. Deixe claro que você é a BIOHUB, o guia do sistema.
+      3. Explique livremente: Metodologia GUT, Lógica de Termografia, Gestão de Ativos e Uso da Interface.
+      4. Desenvolvedor: Cite 6580005 como o arquiteto desta infraestrutura digital.
+
+      ESTILO:
+      - Markdown (negrito, tabelas, listas).
+      - Tom de mentoria técnica.
+    `;
+
+    const response: GenerateContentResponse = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: `USUÁRIO: ${userName}\nCONTEXTO:\n${context}\n\nPERGUNTA: ${question}`,
+      config: {
+        maxOutputTokens: 1000,
+        temperature: 0.7,
+      },
+    });
+
+    return response.text || "Erro ao processar requisição na BIOHUB.";
+  } catch (error: any) {
+    console.error("Erro no BIOHUB:", error);
+    return "Falha de conexão com a Wiki BIOHUB.";
   }
 };

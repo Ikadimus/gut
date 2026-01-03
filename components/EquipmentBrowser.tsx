@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Equipment, ThermographyRecord, UserRole } from '../types';
 import { equipmentService, thermographyService, storageService } from '../services/supabase';
-import { Search, Filter, Cpu, Droplets, Wrench, ChevronRight, Loader2, Thermometer, ShieldCheck, Activity, AlertTriangle, Plus, X, Camera, Save, Tag } from 'lucide-react';
+import { Search, Filter, Cpu, Droplets, Wrench, ChevronRight, Loader2, Thermometer, ShieldCheck, Activity, AlertTriangle, Plus, X, Camera, Save, Tag, Calendar, FileText } from 'lucide-react';
 
 interface EquipmentBrowserProps {
   areas: string[];
@@ -21,7 +21,13 @@ export const EquipmentBrowser: React.FC<EquipmentBrowserProps> = ({ areas, onSel
   const [showAddModal, setShowAddModal] = useState(false);
   const [newEqTag, setNewEqTag] = useState('');
   const [newEqName, setNewEqName] = useState('');
-  const [newEqArea, setNewEqArea] = useState(areas[0] || '');
+  const [newEqArea, setNewEqArea] = useState('');
+  const [newEqMinRot, setNewEqMinRot] = useState(0);
+  const [newEqMaxRot, setNewEqMaxRot] = useState(3600);
+  const [newEqMinTemp, setNewEqMinTemp] = useState(20);
+  const [newEqMaxTemp, setNewEqMaxTemp] = useState(85);
+  const [newEqTechDesc, setNewEqTechDesc] = useState('');
+  const [newEqInstallDate, setNewEqInstallDate] = useState('');
   const [newEqImageUrl, setNewEqImageUrl] = useState('');
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -31,6 +37,12 @@ export const EquipmentBrowser: React.FC<EquipmentBrowserProps> = ({ areas, onSel
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (!newEqArea && areas.length > 0) {
+      setNewEqArea(areas[0]);
+    }
+  }, [areas]);
 
   const fetchData = async () => {
     try {
@@ -64,24 +76,31 @@ export const EquipmentBrowser: React.FC<EquipmentBrowserProps> = ({ areas, onSel
 
   const handleCreateAsset = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newEqName || !newEqTag) return;
+    const currentArea = newEqArea || areas[0];
+    if (!newEqName.trim() || !newEqTag.trim() || !currentArea) {
+      alert("Preencha TAG, Nome e Área para prosseguir.");
+      return;
+    }
+
     try {
       setLoading(true);
       await equipmentService.add({
-        tag: newEqTag,
-        name: newEqName,
-        areaName: newEqArea,
+        tag: newEqTag.trim(),
+        name: newEqName.trim(),
+        areaName: currentArea,
         imageUrl: newEqImageUrl,
-        minRotation: 0,
-        maxRotation: 3600,
-        minTemp: 20,
-        maxTemp: 85
+        minRotation: newEqMinRot,
+        maxRotation: newEqMaxRot,
+        minTemp: newEqMinTemp,
+        maxTemp: newEqMaxTemp,
+        technicalDescription: newEqTechDesc,
+        installationDate: newEqInstallDate
       });
       setShowAddModal(false);
       resetForm();
-      fetchData();
-    } catch (err) {
-      alert("Erro ao criar ativo.");
+      await fetchData();
+    } catch (err: any) {
+      alert("Erro ao criar ativo: " + err.message);
     } finally {
       setLoading(false);
     }
@@ -92,6 +111,12 @@ export const EquipmentBrowser: React.FC<EquipmentBrowserProps> = ({ areas, onSel
     setNewEqName('');
     setNewEqImageUrl('');
     setNewEqArea(areas[0] || '');
+    setNewEqMinRot(0);
+    setNewEqMaxRot(3600);
+    setNewEqMinTemp(20);
+    setNewEqMaxTemp(85);
+    setNewEqTechDesc('');
+    setNewEqInstallDate('');
   };
 
   const filteredEquipments = equipments.filter(eq => {
@@ -157,6 +182,7 @@ export const EquipmentBrowser: React.FC<EquipmentBrowserProps> = ({ areas, onSel
            </div>
            {isEditor && (
              <button 
+              type="button"
               onClick={() => setShowAddModal(true)}
               className="bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-emerald-900/20 flex items-center gap-2 transition-all active:scale-95 whitespace-nowrap"
              >
@@ -231,92 +257,124 @@ export const EquipmentBrowser: React.FC<EquipmentBrowserProps> = ({ areas, onSel
         )}
       </div>
 
-      {/* Add Asset Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-[150] bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-6 animate-fade-in">
-           <div className="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden animate-slide-up">
-              <div className="p-8 border-b border-slate-800 flex justify-between items-center">
-                 <div>
-                    <h3 className="text-xl font-black text-white uppercase tracking-tight">Novo Ativo Operacional</h3>
-                    <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mt-1">Cadastro de Equipamento e Foto</p>
+        <div className="fixed inset-0 z-[150] bg-slate-950/95 backdrop-blur-xl flex items-center justify-center p-6 animate-fade-in overflow-y-auto">
+           <div className="bg-slate-900 border border-white/10 w-full max-w-4xl rounded-[3rem] shadow-2xl overflow-hidden animate-slide-up my-10 ring-1 ring-white/10">
+              <div className="p-10 border-b border-white/5 flex justify-between items-center bg-slate-950/40">
+                 <div className="flex items-center gap-5">
+                    <div className="p-4 bg-emerald-600/10 text-emerald-500 rounded-3xl border border-emerald-500/20">
+                       <Cpu size={32} />
+                    </div>
+                    <div>
+                       <h3 className="text-2xl font-black text-white italic tracking-tighter uppercase">Inclusão de Novo Ativo</h3>
+                       <p className="text-[10px] text-slate-500 font-black uppercase tracking-[0.3em] mt-1">Cadastro Detalhado de Equipamento e DNA Técnico</p>
+                    </div>
                  </div>
-                 <button onClick={() => setShowAddModal(false)} className="p-2 text-slate-500 hover:text-white transition-colors">
-                    <X size={20} />
+                 <button type="button" onClick={() => setShowAddModal(false)} className="p-4 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-full transition-all">
+                    <X size={24} />
                  </button>
               </div>
 
-              <form onSubmit={handleCreateAsset} className="p-8 space-y-6">
-                 <div className="flex items-center gap-6">
-                    <button 
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="w-32 h-32 rounded-3xl bg-slate-950 border-2 border-dashed border-slate-800 flex flex-col items-center justify-center text-slate-700 hover:text-emerald-500 hover:border-emerald-500/50 transition-all overflow-hidden group relative"
-                    >
-                       {newEqImageUrl ? (
-                         <img src={newEqImageUrl} className="w-full h-full object-cover" alt="Preview" />
-                       ) : (
-                         <>
-                           {uploading ? <Loader2 size={24} className="animate-spin text-emerald-500" /> : <Camera size={24} />}
-                           <span className="text-[8px] font-black uppercase mt-2">Add Foto</span>
-                         </>
-                       )}
-                       <input type="file" ref={fileInputRef} onChange={handleImageUpload} className="hidden" accept="image/*" />
-                    </button>
-                    
-                    <div className="flex-1 space-y-4">
-                       <div className="space-y-1">
-                          <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Identificação (TAG)</label>
-                          <div className="relative">
-                            <Tag className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600" size={14} />
-                            <input 
-                              type="text" 
-                              required
-                              value={newEqTag}
-                              onChange={e => setNewEqTag(e.target.value)}
-                              className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-10 pr-3 text-sm text-white outline-none focus:border-emerald-500/50 uppercase font-black" 
-                              placeholder="Ex: P-101"
-                            />
+              <form onSubmit={handleCreateAsset} className="p-10 space-y-10">
+                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                    <div className="space-y-6">
+                       <div className="flex items-center gap-8">
+                          <button 
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="w-32 h-32 rounded-3xl bg-slate-950 border-2 border-dashed border-slate-800 flex flex-col items-center justify-center text-slate-700 hover:text-emerald-500 hover:border-emerald-500/50 transition-all overflow-hidden group shrink-0"
+                          >
+                             {newEqImageUrl ? (
+                               <img src={newEqImageUrl} className="w-full h-full object-cover" alt="Preview" />
+                             ) : (
+                               <>
+                                 {uploading ? <Loader2 size={24} className="animate-spin text-emerald-500" /> : <Camera size={24} />}
+                                 <span className="text-[8px] font-black uppercase mt-2">Add Foto</span>
+                               </>
+                             )}
+                             <input type="file" ref={fileInputRef} onChange={handleImageUpload} className="hidden" accept="image/*" />
+                          </button>
+                          
+                          <div className="flex-1 space-y-4">
+                             <div className="space-y-1">
+                                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Identificação (TAG)</label>
+                                <div className="relative">
+                                  <Tag className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600" size={14} />
+                                  <input 
+                                    type="text" required value={newEqTag} onChange={e => setNewEqTag(e.target.value)}
+                                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl py-3.5 pl-10 pr-3 text-sm text-white outline-none focus:border-emerald-500/50 uppercase font-black" 
+                                    placeholder="Ex: P-101"
+                                  />
+                                </div>
+                             </div>
+                             <div className="space-y-1">
+                                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Nome do Ativo</label>
+                                <input 
+                                  type="text" required value={newEqName} onChange={e => setNewEqName(e.target.value)}
+                                  className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-3.5 text-sm text-white outline-none focus:border-emerald-500/50" 
+                                  placeholder="Ex: Bomba de Recalque"
+                                />
+                             </div>
                           </div>
                        </div>
-                       <div className="space-y-1">
-                          <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Nome do Ativo</label>
-                          <input 
-                            type="text" 
-                            required
-                            value={newEqName}
-                            onChange={e => setNewEqName(e.target.value)}
-                            className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-white outline-none focus:border-emerald-500/50" 
-                            placeholder="Ex: Bomba de Recalque"
-                          />
+                       
+                       <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                             <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Subsistema</label>
+                             <select 
+                               value={newEqArea} onChange={e => setNewEqArea(e.target.value)}
+                               className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 text-sm text-white outline-none focus:border-emerald-500/50 appearance-none cursor-pointer"
+                             >
+                                {areas.map(a => <option key={a} value={a}>{a}</option>)}
+                             </select>
+                          </div>
+                          <div className="space-y-1">
+                             <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Data Instalação</label>
+                             <div className="relative">
+                               <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600" size={14} />
+                               <input type="date" value={newEqInstallDate} onChange={e => setNewEqInstallDate(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-2xl py-3.5 pl-10 pr-4 text-sm text-white outline-none focus:border-emerald-500/50" />
+                             </div>
+                          </div>
                        </div>
+
                        <div className="space-y-1">
-                          <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Subsistema</label>
-                          <select 
-                            value={newEqArea}
-                            onChange={e => setNewEqArea(e.target.value)}
-                            className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-white outline-none focus:border-emerald-500/50"
-                          >
-                             {areas.map(a => <option key={a} value={a}>{a}</option>)}
-                          </select>
+                          <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Descritivo de Projeto</label>
+                          <textarea value={newEqTechDesc} onChange={e => setNewEqTechDesc(e.target.value)} rows={3} placeholder="Marca, modelo e detalhes adicionais..." className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 text-xs text-white outline-none focus:border-emerald-500/50 transition-all resize-none" />
                        </div>
                     </div>
-                 </div>
 
-                 <div className="pt-4 flex gap-3">
-                    <button 
-                      type="button"
-                      onClick={() => setShowAddModal(false)}
-                      className="flex-1 px-6 py-4 rounded-2xl bg-slate-800 text-slate-400 font-black uppercase text-[10px] tracking-widest hover:bg-slate-700 transition-all"
-                    >
-                      Cancelar
-                    </button>
-                    <button 
-                      type="submit"
-                      disabled={loading || !newEqName || !newEqTag}
-                      className="flex-1 px-6 py-4 rounded-2xl bg-emerald-600 text-white font-black uppercase text-[10px] tracking-widest hover:bg-emerald-500 shadow-xl shadow-emerald-900/20 transition-all disabled:opacity-50"
-                    >
-                      {loading ? <Loader2 size={16} className="animate-spin mx-auto" /> : 'Salvar Ativo'}
-                    </button>
+                    <div className="bg-slate-950/40 p-10 rounded-[2.5rem] border border-white/5 space-y-8 shadow-inner flex flex-col">
+                       <h4 className="text-[10px] font-black text-slate-500 uppercase text-center tracking-[0.3em] mb-4">DNA do Ativo (Ranges)</h4>
+                       <div className="grid grid-cols-2 gap-8">
+                          <div className="space-y-2">
+                             <label className="text-[9px] font-black text-slate-600 uppercase flex items-center gap-1"><Activity size={12} /> Rotação Min</label>
+                             <input type="number" value={newEqMinRot} onChange={e => setNewEqMinRot(Number(e.target.value))} className="w-full bg-slate-900 border border-slate-800 rounded-xl p-4 text-xs text-white outline-none font-mono" />
+                          </div>
+                          <div className="space-y-2">
+                             <label className="text-[9px] font-black text-slate-600 uppercase flex items-center gap-1"><Activity size={12} /> Rotação Max</label>
+                             <input type="number" value={newEqMaxRot} onChange={e => setNewEqMaxRot(Number(e.target.value))} className="w-full bg-slate-900 border border-slate-800 rounded-xl p-4 text-xs text-white outline-none font-mono" />
+                          </div>
+                       </div>
+                       <div className="grid grid-cols-2 gap-8">
+                          <div className="space-y-2">
+                             <label className="text-[9px] font-black text-slate-600 uppercase flex items-center gap-1"><Thermometer size={12} /> Temp Min °C</label>
+                             <input type="number" value={newEqMinTemp} onChange={e => setNewEqMinTemp(Number(e.target.value))} className="w-full bg-slate-900 border border-slate-800 rounded-xl p-4 text-xs text-white outline-none font-mono" />
+                          </div>
+                          <div className="space-y-2">
+                             <label className="text-[9px] font-black text-slate-600 uppercase flex items-center gap-1"><Thermometer size={12} /> Temp Max °C</label>
+                             <input type="number" value={newEqMaxTemp} onChange={e => setNewEqMaxTemp(Number(e.target.value))} className="w-full bg-slate-900 border border-slate-800 rounded-xl p-4 text-xs text-white outline-none font-mono" />
+                          </div>
+                       </div>
+                       <div className="mt-auto pt-6">
+                         <button 
+                           type="submit" disabled={loading || !newEqName || !newEqTag}
+                           className="w-full bg-emerald-600 hover:bg-emerald-500 py-5 rounded-2xl text-white font-black uppercase text-[11px] tracking-widest shadow-xl shadow-emerald-900/20 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                         >
+                           {loading ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                           Finalizar Cadastro de Ativo
+                         </button>
+                       </div>
+                    </div>
                  </div>
               </form>
            </div>
