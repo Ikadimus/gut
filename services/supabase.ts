@@ -73,7 +73,6 @@ export const userService = {
   async getAll(): Promise<User[]> {
     const { data, error } = await supabase.from('users').select('*').order('name');
     if (error) throw new Error(getErrorMessage(error));
-    // Fixed: Map each individual user 'd' properly from the 'data' array.
     return (data || []).map(d => ({ id: String(d.id), name: d.name, email: d.email, role: d.role as UserRole, createdAt: d.created_at }));
   },
   async create(user: Omit<User, 'id' | 'createdAt'>): Promise<User> {
@@ -151,7 +150,7 @@ export const equipmentService = {
     if (eq.tag !== undefined) dbObj.tag = eq.tag;
     if (eq.name !== undefined) dbObj.name = eq.name;
     if (eq.areaName !== undefined) dbObj.area_name = eq.areaName;
-    if (eq.imageUrl !== undefined) dbObj.image_url = eq.imageUrl;
+    if (eq.imageUrl !== undefined) dbObj.image_url = toNull(eq.imageUrl);
     if (eq.minRotation !== undefined) dbObj.min_rotation = eq.minRotation;
     if (eq.maxRotation !== undefined) dbObj.max_rotation = eq.maxRotation;
     if (eq.minTemp !== undefined) dbObj.min_temp = eq.minTemp;
@@ -210,9 +209,11 @@ export const issueService = {
   },
   mapToDB(issue: any) {
     const dbObj: any = {};
+    const toNull = (val: any) => (val === '' || val === undefined) ? null : val;
+
     if (issue.title !== undefined) dbObj.title = issue.title;
     if (issue.description !== undefined) dbObj.description = issue.description;
-    if (issue.immediateAction !== undefined) dbObj.immediate_action = issue.immediate_action;
+    if (issue.immediateAction !== undefined) dbObj.immediate_action = issue.immediateAction;
     if (issue.area !== undefined) dbObj.area = issue.area;
     if (issue.equipmentName !== undefined) dbObj.equipment_name = issue.equipmentName;
     if (issue.gravity !== undefined) dbObj.gravity = issue.gravity;
@@ -222,8 +223,8 @@ export const issueService = {
     if (issue.status !== undefined) dbObj.status = issue.status;
     if (issue.aiSuggestion !== undefined) dbObj.ai_suggestion = issue.aiSuggestion;
     if (issue.aiActionSuggestion !== undefined) dbObj.ai_action_suggestion = issue.aiActionSuggestion;
-    if (issue.attachmentUrl !== undefined) dbObj.attachment_url = issue.attachmentUrl;
-    if (issue.attachmentName !== undefined) dbObj.attachment_name = issue.attachmentName;
+    if (issue.attachmentUrl !== undefined) dbObj.attachment_url = toNull(issue.attachmentUrl);
+    if (issue.attachmentName !== undefined) dbObj.attachment_name = toNull(issue.attachmentName);
     return dbObj;
   },
   mapFromDB(dbIssue: any): GUTIssue {
@@ -269,8 +270,8 @@ export const thermographyService = {
       min_temp: record.minTemp, 
       last_inspection: toNull(record.lastInspection), 
       notes: record.notes, 
-      attachment_url: record.attachmentUrl, 
-      attachment_name: record.attachmentName, 
+      attachment_url: toNull(record.attachmentUrl), 
+      attachment_name: toNull(record.attachmentName), 
       ai_analysis: record.aiAnalysis, 
       ai_recommendation: record.aiRecommendation, 
       risk_level: record.riskLevel 
@@ -309,7 +310,6 @@ export const settingsService = {
     return { 
       id: data.id, 
       criticalThreshold: data.critical_threshold, 
-      // Fixed: Renamed snake_case properties to camelCase to match SystemSettings interface
       warningThreshold: data.warning_threshold, 
       individualCriticalThreshold: data.individual_critical_threshold, 
       individualWarningThreshold: data.individual_warning_threshold, 

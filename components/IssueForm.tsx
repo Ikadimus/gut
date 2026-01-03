@@ -87,8 +87,9 @@ export const IssueForm: React.FC<IssueFormProps> = ({
       try {
         setUploading(true);
         await storageService.deleteFile(attachmentUrl);
-        setAttachmentUrl(undefined);
-        setAttachmentName(undefined);
+        // CRÍTICO: Usar string vazia ou null para forçar a limpeza no banco de dados
+        setAttachmentUrl('');
+        setAttachmentName('');
         if (fileInputRef.current) fileInputRef.current.value = '';
       } catch (err: any) {
         alert("Erro ao remover arquivo: " + err.message);
@@ -139,8 +140,8 @@ export const IssueForm: React.FC<IssueFormProps> = ({
       status: initialData?.status || Status.OPEN,
       aiSuggestion: aiReasoning || undefined,
       aiActionSuggestion: aiActionComment || undefined,
-      attachmentUrl,
-      attachmentName
+      attachmentUrl: attachmentUrl || '',
+      attachmentName: attachmentName || ''
     }, initialData?.id);
   };
 
