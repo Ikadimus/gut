@@ -1,16 +1,18 @@
 
 import React, { useState, useEffect } from 'react';
-import { PlusCircle, LayoutDashboard, Settings, Loader2, Database, ShieldCheck, Zap, Key } from 'lucide-react';
-import { GUTIssue, Status } from './types';
+import { PlusCircle, LayoutDashboard, Settings, Loader2, Thermometer, ListFilter, AlertCircle, Users, LogOut, Terminal, HardDrive, Menu, X as CloseIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { GUTIssue, Status, SystemSettings, ThermographyRecord, User, UserRole } from './types';
 import { StatsCards } from './components/StatsCards';
 import { IssueForm } from './components/IssueForm';
 import { GUTTable } from './components/GUTTable';
 import { Charts } from './components/Charts';
 import { AreaManager } from './components/AreaManager';
 import { DetailsModal } from './components/DetailsModal';
-import { issueService, areaService } from './services/supabase';
+import { ThermographyManager } from './components/ThermographyManager';
+import { Login } from './components/Login';
+import { AdminUsers } from './components/AdminUsers';
+import { issueService, areaService, settingsService, thermographyService, userService, storageService } from './services/supabase';
 
-// Declaração global segura para o seletor de chaves e SDK Google
 declare global {
   interface AIStudio {
     hasSelectedApiKey: () => Promise<boolean>;
@@ -18,40 +20,64 @@ declare global {
   }
   interface Window {
     aistudio?: AIStudio;
-    // Fix: Unified global declaration of google property on Window to ensure identical modifiers (making it optional to match other files)
     google?: any;
   }
 }
 
+type MainView = 'dashboard' | 'gut' | 'thermography' | 'areas' | 'users';
+
 function App() {
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [issues, setIssues] = useState<GUTIssue[]>([]);
+  const [thermography, setThermography] = useState<ThermographyRecord[]>([]);
   const [areas, setAreas] = useState<string[]>([]);
-  const [view, setView] = useState<'dashboard' | 'form' | 'areas'>('dashboard');
+  const [settings, setSettings] = useState<SystemSettings>({ 
+    criticalThreshold: 250, 
+    warningThreshold: 100, 
+    individualCriticalThreshold: 80,
+    individualWarningThreshold: 40,
+    accentColor: '#10b981',
+    colorNormal: '#10b981',
+    colorWarning: '#f59e0b',
+    colorCritical: '#ef4444'
+  });
+  
+  const [view, setView] = useState<MainView>('dashboard');
+  const [showForm, setShowForm] = useState(false);
   const [currentIssue, setCurrentIssue] = useState<GUTIssue | null>(null);
   const [showDetails, setShowDetails] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [aiConnected, setAiConnected] = useState(false);
+  const [storageAlert, setStorageAlert] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   useEffect(() => {
-    fetchInitialData();
+    if (currentUser) {
+      fetchInitialData();
+      if (currentUser.role === UserRole.DEVELOPER) {
+        checkInfra();
+      }
+    }
+  }, [currentUser]);
+
+  useEffect(() => {
     checkAiStatus();
-    
-    // Polling opcional para verificar se a chave foi selecionada no diálogo
-    const interval = setInterval(checkAiStatus, 2000);
+    const interval = setInterval(checkAiStatus, 3000);
     return () => clearInterval(interval);
   }, []);
 
-  const checkAiStatus = async () => {
-    // Correctly checking process.env.API_KEY exclusively as per guidelines
-    const envKey = process.env.API_KEY;
-    const hasKeyInEnv = !!(envKey && envKey !== 'undefined' && envKey !== '');
+  const checkInfra = async () => {
+    const exists = await storageService.checkBucketExists();
+    setStorageAlert(!exists);
+  };
 
-    if (hasKeyInEnv) {
+  const checkAiStatus = async () => {
+    const envKey = process.env.API_KEY;
+    if (envKey && envKey !== 'undefined' && envKey !== '') {
       setAiConnected(true);
       return;
     }
-
     if (window.aistudio) {
       try {
         const hasKey = await window.aistudio.hasSelectedApiKey();
@@ -66,33 +92,38 @@ function App() {
     if (window.aistudio) {
       try {
         await window.aistudio.openSelectKey();
-        // Assume sucesso imediato para melhorar UX, o polling atualizará o estado real
         setAiConnected(true);
       } catch (err) {
         console.error("Erro ao abrir seletor de chaves:", err);
       }
-    } else {
-      alert("Para cadastrar a chave manualmente, use o Chrome/Edge ou defina a variável API_KEY nas configurações do seu ambiente.");
     }
   };
 
   const fetchInitialData = async () => {
     try {
       setLoading(true);
-      const [fetchedIssues, fetchedAreas] = await Promise.all([
-        issueService.getAll(),
-        areaService.getAll()
+      setError(null);
+      
+      const [fetchedIssues, fetchedAreas, fetchedSettings, fetchedThermo] = await Promise.all([
+        issueService.getAll().catch(() => []),
+        areaService.getAll().catch(() => []),
+        settingsService.get().catch(() => settings),
+        thermographyService.getAll().catch(() => [])
       ]);
+
       setIssues(fetchedIssues);
       setAreas(fetchedAreas);
+      setSettings(fetchedSettings);
+      setThermography(fetchedThermo);
     } catch (err: any) {
-      setError(`Erro de conexão: ${err.message}`);
+      setError(`Erro ao carregar dados: ${err.message}`);
     } finally {
       setLoading(false);
     }
   };
 
   const handleSaveIssue = async (newIssueData: Omit<GUTIssue, 'id' | 'createdAt'>, id?: string) => {
+    if (currentUser?.role === UserRole.VIEWER) return;
     try {
       setLoading(true);
       if (id) {
@@ -102,7 +133,7 @@ function App() {
         const created = await issueService.create(newIssueData);
         setIssues(prev => [created, ...prev]);
       }
-      setView('dashboard');
+      setShowForm(false);
     } catch (err: any) {
       alert(`Falha ao salvar: ${err.message}`);
     } finally {
@@ -110,111 +141,231 @@ function App() {
     }
   };
 
-  if (loading && issues.length === 0) {
-    return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <Loader2 size={40} className="animate-spin text-green-500" />
-      </div>
-    );
+  const handleLogout = () => {
+    setCurrentUser(null);
+    setView('dashboard');
+  };
+
+  if (!currentUser) {
+    return <Login onLoginSuccess={setCurrentUser} />;
   }
 
+  const isDev = currentUser.role === UserRole.DEVELOPER;
+  const isAdmin = currentUser.role === UserRole.ADMIN || isDev;
+  const isEditor = currentUser.role === UserRole.EDITOR || isAdmin;
+
+  const NavButton = ({ target, icon: Icon, label, colorClass }: any) => (
+    <button 
+      onClick={() => setView(target)}
+      className={`w-full flex items-center ${sidebarOpen ? 'px-4 justify-start' : 'px-0 justify-center'} py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all group ${view === target ? `${colorClass} shadow-lg shadow-black/20` : 'text-slate-500 hover:text-white hover:bg-slate-800/50'}`}
+    >
+      <Icon size={18} className={`${view === target ? 'scale-110' : 'opacity-50 group-hover:opacity-100'} transition-transform shrink-0`} />
+      <span className={`${sidebarOpen ? 'block ml-3' : 'hidden'} transition-all truncate`}>{label}</span>
+    </button>
+  );
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-purple-500/30">
-      <header className="bg-slate-900/80 backdrop-blur-md border-b border-slate-800 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex flex-col cursor-pointer group" onClick={() => setView('dashboard')}>
-            <span className="text-2xl font-black text-white italic tracking-tighter group-hover:text-green-500 transition-colors">
-              BIOMETANO <span className="text-orange-500">Caieiras</span>
-            </span>
-            <div className="flex items-center gap-3 mt-1">
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-green-500">Engenharia de Risco</span>
-              {aiConnected ? (
-                <span className="flex items-center gap-1.5 text-[9px] text-purple-400 bg-purple-900/30 px-3 py-1 rounded-full border border-purple-800/50 font-black uppercase tracking-widest animate-pulse">
-                  <Zap size={10} fill="currentColor" /> IA Ativa
-                </span>
-              ) : (
-                <button 
-                  onClick={handleConnectAi}
-                  className="flex items-center gap-2 text-[10px] text-white bg-purple-600 hover:bg-purple-500 px-4 py-1.5 rounded-full border border-purple-400 font-black uppercase tracking-widest transition-all shadow-lg shadow-purple-900/20 active:scale-95"
-                >
-                  <Key size={12} /> Ativar IA
-                </button>
-              )}
-            </div>
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex overflow-hidden selection:bg-green-500/30">
+      {/* SIDEBAR */}
+      <aside className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-slate-900 border-r border-slate-800 transition-all duration-300 flex flex-col z-50 relative`}>
+        {/* Toggle Button Moved to Internal Sidebar Edge */}
+        <button 
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="absolute top-6 -right-3 bg-slate-800 border border-slate-700 rounded-full p-1.5 text-slate-400 hover:text-white transition-all shadow-xl z-[60] hover:scale-110 active:scale-95"
+          title={sidebarOpen ? "Recolher Menu" : "Expandir Menu"}
+        >
+          {sidebarOpen ? <ChevronLeft size={14}/> : <ChevronRight size={14}/>}
+        </button>
+
+        <div className="p-6 flex flex-col items-center">
+          <div className="flex flex-col items-center group cursor-pointer mb-8" onClick={() => setView('dashboard')}>
+             {sidebarOpen ? (
+               <span className="font-black text-white italic tracking-tighter text-2xl animate-fade-in">
+                 BIOMETANO <span className="text-orange-500">Caieiras</span>
+               </span>
+             ) : (
+               <div className="w-10 h-10 rounded-xl bg-orange-600 flex items-center justify-center font-black text-white italic text-lg shadow-lg shadow-orange-900/20">B</div>
+             )}
+            {sidebarOpen && (
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-[8px] font-black uppercase tracking-[0.2em] text-slate-500">Risk Engineering</span>
+                {aiConnected && <div className="w-1 h-1 rounded-full bg-purple-500 animate-pulse"></div>}
+              </div>
+            )}
           </div>
 
-          <div className="flex gap-4 items-center">
-             <button 
-                onClick={() => setView('areas')} 
-                className={`p-2 rounded-lg transition-all ${view === 'areas' ? 'text-green-500 bg-green-500/10' : 'text-slate-500 hover:text-white hover:bg-slate-800'}`}
-                title="Configurações"
-             >
-                <Settings size={22} />
-             </button>
-             <button 
-                onClick={() => {setCurrentIssue(null); setView('form');}}
-                className="bg-green-600 hover:bg-green-500 text-white px-8 py-2.5 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] transition-all shadow-xl active:scale-95 flex items-center gap-2"
-             >
-                <PlusCircle size={18} /> Novo Evento
-             </button>
+          <div className="w-full space-y-2">
+            <NavButton target="dashboard" icon={LayoutDashboard} label="Dashboard" colorClass="bg-slate-100 text-slate-950" />
+            <NavButton target="gut" icon={ListFilter} label="Matrix GUT" colorClass="bg-blue-600 text-white" />
+            <NavButton target="thermography" icon={Thermometer} label="Termografia" colorClass="bg-orange-600 text-white" />
+            
+            {isAdmin && (
+              <NavButton target="users" icon={Users} label="Usuários" colorClass="bg-indigo-600 text-white" />
+            )}
+            
+            {isAdmin && (
+              <NavButton target="areas" icon={Settings} label="Configuração" colorClass="bg-green-600 text-white" />
+            )}
           </div>
         </div>
-      </header>
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-10">
-        {error && (
-          <div className="bg-red-900/20 border border-red-800 text-red-400 p-4 rounded-xl mb-8 flex items-center gap-3">
-            <Zap size={18} /> {error}
-          </div>
-        )}
+        <div className="mt-auto p-4 border-t border-slate-800">
+           <div className={`flex items-center ${sidebarOpen ? 'gap-3 px-3' : 'justify-center px-0'} py-3 rounded-2xl bg-black/20 mb-4 overflow-hidden`}>
+               <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-[10px] font-black uppercase border transition-all shrink-0 ${isDev ? 'bg-purple-900/30 text-purple-400 border-purple-800/50' : 'bg-slate-800 text-slate-400 border-slate-700'}`}>
+                  {isDev ? <Terminal size={18}/> : currentUser.name.charAt(0)}
+               </div>
+               {sidebarOpen && (
+                 <div className="truncate">
+                    <p className="text-[10px] font-black text-slate-200 uppercase tracking-tight truncate leading-none">{currentUser.name}</p>
+                    <p className={`text-[8px] font-bold uppercase tracking-widest mt-1 ${isDev ? 'text-purple-400' : 'text-slate-500'}`}>{currentUser.role}</p>
+                 </div>
+               )}
+           </div>
+           
+           <button 
+             onClick={handleLogout}
+             className={`w-full flex items-center ${sidebarOpen ? 'px-4 justify-start' : 'justify-center'} py-3 rounded-xl text-red-500 hover:bg-red-500/10 transition-all font-black text-[10px] uppercase tracking-widest`}
+           >
+             <LogOut size={18} className="shrink-0" />
+             {sidebarOpen && <span className="ml-3">Sair</span>}
+           </button>
+        </div>
+      </aside>
 
-        {view === 'dashboard' && (
-          <div className="space-y-12 animate-fade-in">
-            <StatsCards issues={issues} />
-            <Charts issues={issues} areas={areas} />
-            <GUTTable 
-                issues={issues} 
-                onStatusChange={async (id, status) => {
-                  const updated = await issueService.update(id, { status });
-                  setIssues(prev => prev.map(i => i.id === id ? updated : i));
-                }}
-                onEdit={(id) => {
-                  const issue = issues.find(i => i.id === id);
-                  if (issue) { setCurrentIssue(issue); setView('form'); }
-                }}
-                onDetails={(id) => {
-                  const issue = issues.find(i => i.id === id);
-                  if (issue) { setCurrentIssue(issue); setShowDetails(true); }
-                }}
-            />
-          </div>
-        )}
+      {/* MAIN CONTENT AREA */}
+      <main className="flex-1 overflow-y-auto custom-scrollbar bg-slate-950 relative">
+        <div className="max-w-7xl mx-auto px-6 py-10">
+          
+          {isDev && storageAlert && (
+            <div className="bg-orange-500/10 border border-orange-500/30 text-orange-400 p-4 rounded-2xl mb-6 flex items-center justify-between animate-fade-in shadow-xl shadow-orange-950/20">
+              <div className="flex items-center gap-3">
+                <HardDrive size={20} className="animate-pulse" />
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest">Alerta de Infraestrutura (Developer Only)</p>
+                  <p className="text-[9px] font-bold opacity-80 uppercase">O bucket 'attachments' não foi detectado no Supabase.</p>
+                </div>
+              </div>
+              <button onClick={() => setStorageAlert(false)} className="text-[9px] font-black uppercase tracking-widest opacity-50 hover:opacity-100">Ignorar</button>
+            </div>
+          )}
 
-        {view === 'form' && (
-          <IssueForm 
-            onSave={handleSaveIssue} 
-            onCancel={() => setView('dashboard')} 
-            onDelete={async (id) => {
-              if (confirm("Deseja realmente excluir este registro permanentemente?")) {
-                await issueService.delete(id);
-                setIssues(prev => prev.filter(i => i.id !== id));
-                setView('dashboard');
-              }
-            }}
-            areas={areas.length > 0 ? areas : ["Geral"]}
-            initialData={currentIssue}
-            onConnectAI={handleConnectAi}
-            isAIConnected={aiConnected}
-          />
-        )}
+          {error && (
+            <div className="bg-red-950/40 border border-red-800/50 text-red-200 p-5 rounded-2xl mb-8 flex items-start gap-4 animate-fade-in">
+              <AlertCircle className="text-red-500 shrink-0 mt-1" />
+              <div>
+                <p className="font-black uppercase text-xs tracking-widest mb-1">Erro Crítico</p>
+                <p className="text-xs opacity-80 leading-relaxed">{error}</p>
+              </div>
+            </div>
+          )}
 
-        {view === 'areas' && (
-          <AreaManager 
-            areas={areas} 
-            onUpdateAreas={() => fetchInitialData()} 
-            onCancel={() => setView('dashboard')} 
-          />
-        )}
+          {loading && issues.length === 0 && !error && (
+            <div className="flex flex-col items-center justify-center py-40 gap-4">
+               <Loader2 size={48} className="animate-spin text-green-500" />
+               <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Acessando Central de Caieiras...</p>
+            </div>
+          )}
+
+          {!loading && (
+            <div className="animate-fade-in">
+              {view === 'dashboard' && (
+                <div className="space-y-12">
+                  <header className="mb-8">
+                    <h1 className="text-3xl font-black text-white tracking-tighter uppercase">Visão Geral Operacional</h1>
+                    <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mt-1">Painel de Monitoramento de Risco e Disponibilidade</p>
+                  </header>
+                  <StatsCards 
+                    issues={issues} 
+                    thermography={thermography} 
+                    onViewGUTDetail={(id) => {
+                      const issue = issues.find(i => i.id === id);
+                      if (issue) { setCurrentIssue(issue); setShowDetails(true); }
+                    }}
+                    onViewThermo={() => setView('thermography')}
+                  />
+                  <Charts issues={issues} thermography={thermography} areas={areas} settings={settings} />
+                </div>
+              )}
+
+              {view === 'gut' && (
+                <div className="space-y-8">
+                   {showForm ? (
+                    <div className="animate-slide-up">
+                      <IssueForm 
+                        onSave={handleSaveIssue} 
+                        onCancel={() => {setShowForm(false); setCurrentIssue(null);}} 
+                        onDelete={async (id) => {
+                          if (!isAdmin) { alert("Sem permissão para excluir."); return; }
+                          await issueService.delete(id);
+                          setIssues(prev => prev.filter(i => i.id !== id));
+                          setShowForm(false);
+                          setCurrentIssue(null);
+                        }}
+                        areas={areas.length > 0 ? areas : ["Geral"]}
+                        initialData={currentIssue}
+                        onConnectAI={handleConnectAi}
+                        isAIConnected={aiConnected}
+                      />
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+                        <div>
+                          <h2 className="text-2xl font-black uppercase tracking-tight text-white">Matriz GUT</h2>
+                          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Protocolos de Priorização</p>
+                        </div>
+                        {isEditor && (
+                          <button 
+                            onClick={() => {setCurrentIssue(null); setShowForm(true);}}
+                            className="bg-blue-600 hover:bg-blue-500 text-white px-8 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 shadow-xl shadow-blue-900/20 active:scale-95"
+                          >
+                            <PlusCircle size={16} /> Novo Registro
+                          </button>
+                        )}
+                      </div>
+                      <GUTTable 
+                          issues={issues} 
+                          onStatusChange={async (id, status) => {
+                            if (!isEditor) { alert("Sem permissão para alterar status."); return; }
+                            const updated = await issueService.update(id, { status });
+                            setIssues(prev => prev.map(i => i.id === id ? updated : i));
+                          }}
+                          onEdit={(id) => {
+                            if (!isEditor) return;
+                            const issue = issues.find(i => i.id === id);
+                            if (issue) { setCurrentIssue(issue); setShowForm(true); }
+                          }}
+                          onDetails={(id) => {
+                            const issue = issues.find(i => i.id === id);
+                            if (issue) { setCurrentIssue(issue); setShowDetails(true); }
+                          }}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {view === 'thermography' && (
+                <ThermographyManager areas={areas} userRole={currentUser.role} />
+              )}
+
+              {view === 'users' && isAdmin && (
+                <AdminUsers currentUser={currentUser} />
+              )}
+
+              {view === 'areas' && isAdmin && (
+                <AreaManager 
+                  areas={areas} 
+                  onUpdateAreas={() => fetchInitialData()} 
+                  onCancel={() => setView('dashboard')} 
+                  initialSettings={settings}
+                  onUpdateSettings={(s) => setSettings(s)}
+                  currentUser={currentUser}
+                />
+              )}
+            </div>
+          )}
+        </div>
       </main>
 
       {showDetails && currentIssue && (

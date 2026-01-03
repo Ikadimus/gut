@@ -2,9 +2,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { GUTIssue, Status } from '../types';
 import { analyzeIssueWithAI } from '../services/geminiService';
-import { uploadFileToDrive } from '../services/googleDriveService';
+import { storageService } from '../services/supabase';
 import { GUT_SCALES } from '../constants';
-import { Bot, Save, Loader2, Sparkles, Trash2, X, AlertCircle, Key, Paperclip, FileText, Zap, Info } from 'lucide-react';
+import { Bot, Save, Loader2, Sparkles, Trash2, X, Paperclip, FileText, Zap, Info } from 'lucide-react';
 
 interface IssueFormProps {
   onSave: (issue: Omit<GUTIssue, 'id' | 'createdAt'>, id?: string) => void;
@@ -70,11 +70,11 @@ export const IssueForm: React.FC<IssueFormProps> = ({
     if (!file) return;
     try {
       setUploading(true);
-      const result = await uploadFileToDrive(file);
+      const result = await storageService.uploadFile(file, 'gut');
       setAttachmentUrl(result.url);
       setAttachmentName(result.name);
     } catch (err: any) {
-      alert(err.message || "Erro ao anexar arquivo.");
+      alert("Erro ao salvar arquivo no Supabase: " + (err.message || "Erro desconhecido"));
     } finally {
       setUploading(false);
     }
@@ -137,6 +137,12 @@ export const IssueForm: React.FC<IssueFormProps> = ({
   if (currentScore >= 36) scoreColor = 'bg-amber-900/20 text-amber-400 border-amber-800/40';
   if (currentScore >= 81) scoreColor = 'bg-red-900/20 text-red-400 border-red-800/40 shadow-[0_0_25px_rgba(239,68,68,0.15)]';
 
+  const explanations = {
+    gravity: "Avalie o dano físico, ambiental ou financeiro que este evento pode causar.",
+    urgency: "Considere se a ação deve ser imediata ou se há tempo para planejamento.",
+    tendency: "Se nada for feito hoje, como o problema estará amanhã?"
+  };
+
   return (
     <div className="bg-slate-800 rounded-2xl shadow-2xl p-6 lg:p-8 max-w-6xl mx-auto border border-slate-700 animate-fade-in ring-1 ring-white/5 overflow-hidden">
       <div className="flex justify-between items-center mb-6 border-b border-slate-700 pb-5">
@@ -175,7 +181,6 @@ export const IssueForm: React.FC<IssueFormProps> = ({
                   <textarea required rows={3} value={description} onChange={(e) => setDescription(e.target.value)} className="w-full rounded-xl bg-slate-900 border-slate-700 text-slate-100 p-3 border outline-none text-xs leading-relaxed" placeholder="Descreva os sintomas, pressões e parâmetros observados..." />
                 </div>
                 
-                {/* Feedback IA sobre o Problema */}
                 {aiReasoning && (
                   <div className="bg-slate-900/50 border border-slate-700 p-4 rounded-xl flex gap-3 animate-fade-in">
                     <Bot size={18} className="text-purple-400 shrink-0 mt-0.5" />
@@ -195,7 +200,6 @@ export const IssueForm: React.FC<IssueFormProps> = ({
                   <textarea rows={3} value={immediateAction} onChange={(e) => setImmediateAction(e.target.value)} className="w-full rounded-xl bg-slate-900 border-slate-700 text-slate-100 p-3 border outline-none text-xs leading-relaxed" placeholder="Qual a primeira providência para conter o risco?" />
                 </div>
 
-                {/* Feedback IA sobre a Ação */}
                 {aiActionComment && (
                   <div className="bg-purple-900/10 border border-purple-800/30 p-4 rounded-xl flex gap-3 animate-fade-in shadow-inner">
                     <Sparkles size={18} className="text-purple-400 shrink-0 mt-0.5" />
@@ -209,10 +213,9 @@ export const IssueForm: React.FC<IssueFormProps> = ({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-               {/* Seção Anexos */}
                <div className="bg-slate-900/40 p-4 rounded-xl border border-slate-700/50">
                   <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2.5 flex items-center gap-2">
-                    <Paperclip size={12} /> Documentação Fotográfica / Evidência
+                    <Paperclip size={12} /> Documentação Operacional / Evidência
                   </label>
                   {attachmentUrl ? (
                     <div className="flex items-center justify-between bg-green-900/10 border border-green-800/30 p-2.5 rounded-lg">
@@ -225,13 +228,12 @@ export const IssueForm: React.FC<IssueFormProps> = ({
                   ) : (
                     <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading} className="w-full py-2.5 border border-dashed border-slate-700 rounded-xl flex items-center justify-center gap-3 text-slate-500 hover:text-slate-300 hover:border-slate-500 transition-all text-[10px] font-black uppercase tracking-widest">
                        {uploading ? <Loader2 size={14} className="animate-spin text-blue-500" /> : <Paperclip size={14} />}
-                       {uploading ? 'Processando Upload...' : 'Anexar Documento'}
+                       {uploading ? 'Salvando no Supabase...' : 'Anexar Documento (Cloud)'}
                        <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
                     </button>
                   )}
                </div>
 
-               {/* Controle IA */}
                <div className="bg-slate-900/60 p-4 rounded-xl border border-slate-700/50 flex flex-col justify-center">
                   <div className="flex items-center justify-between">
                       <div>
@@ -255,7 +257,6 @@ export const IssueForm: React.FC<IssueFormProps> = ({
             </div>
           </div>
 
-          {/* Coluna de Sliders e Resultado (Direita - Compacta) */}
           <div className="lg:col-span-1 flex flex-col gap-4 h-full">
              <div className="bg-slate-900/80 p-5 rounded-2xl border border-slate-700/50 space-y-7 shadow-inner">
                 <h3 className="font-black text-slate-500 text-center text-[9px] uppercase tracking-[0.3em] mb-4 border-b border-slate-800 pb-2">Matriz de Campo</h3>
@@ -265,9 +266,12 @@ export const IssueForm: React.FC<IssueFormProps> = ({
                   { id: 'urgency', label: 'Urgência', val: urgency, set: setUrgency },
                   { id: 'tendency', label: 'Tendência', val: tendency, set: setTendency }
                 ].map((item) => (
-                  <div key={item.id} className="space-y-2">
+                  <div key={item.id} className="space-y-2 group">
                     <div className="flex justify-between items-center px-1">
-                      <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{item.label}</span>
+                      <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest flex items-center gap-1">
+                        {item.label}
+                        <Info size={10} className="text-slate-600 group-hover:text-green-500 transition-colors cursor-help" title={explanations[item.id as keyof typeof explanations]} />
+                      </span>
                       <span className="text-green-500 font-black text-base">{item.val}</span>
                     </div>
                     <input 
@@ -283,7 +287,7 @@ export const IssueForm: React.FC<IssueFormProps> = ({
                 ))}
              </div>
 
-             <div className={`flex-1 min-h-[140px] rounded-2xl border-2 flex flex-col items-center justify-center transition-all duration-700 ${scoreColor} p-4 text-center`}>
+             <div className={`flex-1 min-h-[140px] rounded-2xl border-2 flex flex-col items-center justify-center transition-all duration-700 ${scoreColor} p-4 text-center`} title="Multiplicação de G x U x T">
                 <span className="text-[10px] font-black uppercase tracking-[0.4em] mb-2 opacity-60">GUT TOTAL</span>
                 <span className="text-6xl font-black italic tracking-tighter drop-shadow-md">
                     {currentScore}
@@ -299,7 +303,7 @@ export const IssueForm: React.FC<IssueFormProps> = ({
             <div>
               {initialData && onDelete && (
                 <button type="button" onClick={() => {
-                   if(confirm("Confirma a exclusão permanente deste registro do banco de dados?")) {
+                   if(confirm("Confirma a exclusão permanente deste registro?")) {
                       onDelete(initialData.id);
                    }
                 }} className="px-6 py-3 text-red-400 bg-red-950/10 border border-red-900/40 rounded-xl hover:bg-red-900/30 font-black uppercase text-[10px] tracking-widest flex items-center gap-2 transition-all shadow-lg active:scale-95">

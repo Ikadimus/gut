@@ -1,6 +1,7 @@
+
 import React from 'react';
 import { GUTIssue, Status } from '../types';
-import { CheckCircle2, Filter, Eye, Edit2 } from 'lucide-react';
+import { CheckCircle2, Filter, Eye, Edit2, Info } from 'lucide-react';
 
 interface GUTTableProps {
   issues: GUTIssue[];
@@ -41,11 +42,17 @@ export const GUTTable: React.FC<GUTTableProps> = ({ issues, onStatusChange, onEd
         <table className="w-full text-left text-sm border-collapse">
           <thead className="bg-slate-900 text-slate-400 uppercase text-[10px] font-black tracking-widest">
             <tr>
-              <th className="px-6 py-4 border-b border-slate-800">Score</th>
+              <th className="px-6 py-4 border-b border-slate-800" title="Pontuação Final (G x U x T). Quanto maior, mais crítica a ação.">Score</th>
               <th className="px-6 py-4 border-b border-slate-800">Problema / Área</th>
-              <th className="px-6 py-4 text-center border-b border-slate-800">G</th>
-              <th className="px-6 py-4 text-center border-b border-slate-800">U</th>
-              <th className="px-6 py-4 text-center border-b border-slate-800">T</th>
+              <th className="px-6 py-4 text-center border-b border-slate-800 group" title="GRAVIDADE: O impacto do problema na segurança, operação ou meio ambiente.">
+                <span className="flex items-center justify-center gap-1 cursor-help">G <Info size={10} className="text-slate-600 group-hover:text-blue-400 transition-colors" /></span>
+              </th>
+              <th className="px-6 py-4 text-center border-b border-slate-800 group" title="URGÊNCIA: O prazo disponível ou necessário para a resolução do problema.">
+                <span className="flex items-center justify-center gap-1 cursor-help">U <Info size={10} className="text-slate-600 group-hover:text-orange-400 transition-colors" /></span>
+              </th>
+              <th className="px-6 py-4 text-center border-b border-slate-800 group" title="TENDÊNCIA: O potencial de crescimento ou agravamento do problema caso nada seja feito.">
+                <span className="flex items-center justify-center gap-1 cursor-help">T <Info size={10} className="text-slate-600 group-hover:text-red-400 transition-colors" /></span>
+              </th>
               <th className="px-6 py-4 border-b border-slate-800">Status</th>
               <th className="px-6 py-4 text-center border-b border-slate-800">Ações</th>
             </tr>
@@ -69,7 +76,7 @@ export const GUTTable: React.FC<GUTTableProps> = ({ issues, onStatusChange, onEd
                     <div className="font-bold text-slate-200 group-hover:text-white transition-colors uppercase text-xs tracking-tight">{issue.title}</div>
                     <div className="text-[10px] text-slate-500 mt-1 uppercase font-medium">{issue.area}</div>
                     {issue.aiSuggestion && (
-                        <div className="mt-2 flex items-center gap-1 text-[9px] text-purple-300 bg-purple-900/30 w-fit px-2 py-0.5 rounded border border-purple-800/50 font-bold uppercase tracking-tighter">
+                        <div className="mt-2 flex items-center gap-1 text-[9px] text-purple-300 bg-purple-900/30 w-fit px-2 py-0.5 rounded border border-purple-800/50 font-bold uppercase tracking-tighter" title="Este registro foi validado por Inteligência Artificial">
                             <CheckCircle2 size={10} /> IA Sync
                         </div>
                     )}
