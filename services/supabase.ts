@@ -279,6 +279,26 @@ export const thermographyService = {
     if (error) throw new Error(getErrorMessage(error));
     return this.mapFromDB(data);
   },
+  async update(id: string, record: Partial<ThermographyRecord>): Promise<ThermographyRecord> {
+    const toNull = (val: any) => (val === '' || val === undefined) ? null : val;
+    const dbObj: any = {};
+    if (record.equipmentName !== undefined) dbObj.equipment_name = record.equipmentName;
+    if (record.area !== undefined) dbObj.area = record.area;
+    if (record.currentTemp !== undefined) dbObj.current_temp = record.currentTemp;
+    if (record.maxTemp !== undefined) dbObj.max_temp = record.maxTemp;
+    if (record.minTemp !== undefined) dbObj.min_temp = record.minTemp;
+    if (record.lastInspection !== undefined) dbObj.last_inspection = toNull(record.lastInspection);
+    if (record.notes !== undefined) dbObj.notes = record.notes;
+    if (record.attachmentUrl !== undefined) dbObj.attachment_url = toNull(record.attachmentUrl);
+    if (record.attachmentName !== undefined) dbObj.attachment_name = toNull(record.attachmentName);
+    if (record.aiAnalysis !== undefined) dbObj.ai_analysis = record.aiAnalysis;
+    if (record.aiRecommendation !== undefined) dbObj.ai_recommendation = record.aiRecommendation;
+    if (record.riskLevel !== undefined) dbObj.risk_level = record.riskLevel;
+
+    const { data, error } = await supabase.from('thermography').update(dbObj).eq('id', id).select().single();
+    if (error) throw new Error(getErrorMessage(error));
+    return this.mapFromDB(data);
+  },
   async delete(id: string): Promise<void> {
     await supabase.from('thermography').delete().eq('id', id);
   },

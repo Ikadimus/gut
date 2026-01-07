@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ThermographyRecord, UserRole, Equipment } from '../types';
 import { thermographyService, storageService, equipmentService } from '../services/supabase';
 import { analyzeThermographyWithAI } from '../services/geminiService';
-import { Thermometer, Plus, Trash2, Camera, MapPin, Gauge, Loader2, Save, X, Paperclip, FileText, TrendingUp, AlertTriangle, Sparkles, Bot, ShieldCheck, Cpu, Eye, Info, ExternalLink, CloudSun, Activity, Clock, History } from 'lucide-react';
+import { Thermometer, Plus, Trash2, Camera, MapPin, Gauge, Loader2, Save, X, Paperclip, FileText, TrendingUp, AlertTriangle, Sparkles, Bot, ShieldCheck, Cpu, Eye, Info, ExternalLink, CloudSun, Activity, Clock, History, Edit2 } from 'lucide-react';
 
 interface ThermographyManagerProps {
   areas: string[];
@@ -15,6 +15,7 @@ export const ThermographyManager: React.FC<ThermographyManagerProps> = ({ areas,
   const [records, setRecords] = useState<ThermographyRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [showDetails, setShowDetails] = useState<ThermographyRecord | null>(null);
   const [uploading, setUploading] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
@@ -55,13 +56,13 @@ export const ThermographyManager: React.FC<ThermographyManagerProps> = ({ areas,
       const eq = availableEquipments.find(e => e.name === equipmentName);
       if (eq) {
         setSelectedEquipment(eq);
-        if (eq.maxTemp) setMaxTemp(eq.maxTemp);
-        if (eq.minTemp) setMinTemp(eq.minTemp);
+        if (eq.maxTemp && !editingId) setMaxTemp(eq.maxTemp);
+        if (eq.minTemp && !editingId) setMinTemp(eq.minTemp);
       }
     } else {
       setSelectedEquipment(null);
     }
-  }, [equipmentName, availableEquipments]);
+  }, [equipmentName, availableEquipments, editingId]);
 
   const fetchRecords = async () => {
     try {
@@ -116,7 +117,7 @@ export const ThermographyManager: React.FC<ThermographyManagerProps> = ({ areas,
     e.preventDefault();
     try {
       setLoading(true);
-      await thermographyService.create({ 
+      const recordData = { 
         equipmentName, 
         area, 
         currentTemp, 
@@ -129,14 +130,50 @@ export const ThermographyManager: React.FC<ThermographyManagerProps> = ({ areas,
         aiAnalysis, 
         aiRecommendation, 
         riskLevel 
-      });
+      };
+
+      if (editingId) {
+        await thermographyService.update(editingId, recordData);
+      } else {
+        await thermographyService.create(recordData);
+      }
+      
       fetchRecords(); 
       setShowForm(false); 
       resetForm();
     } finally { setLoading(false); }
   };
 
+  const handleEdit = (record: ThermographyRecord) => {
+    setEditingId(record.id);
+    setEquipmentName(record.equipmentName);
+    setArea(record.area);
+    setCurrentTemp(record.currentTemp);
+    setMaxTemp(record.maxTemp);
+    setMinTemp(record.minTemp);
+    setLastInspection(record.lastInspection || new Date().toISOString().split('T')[0]);
+    setNotes(record.notes || '');
+    setAttachmentUrl(record.attachmentUrl || '');
+    setAttachmentName(record.attachmentName || '');
+    setAiAnalysis(record.aiAnalysis || '');
+    setAiRecommendation(record.aiRecommendation || '');
+    setRiskLevel(record.riskLevel || '');
+    setShowForm(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (confirm("Deseja remover este laudo permanentemente?")) {
+      try {
+        await thermographyService.delete(id);
+        fetchRecords();
+      } catch (err: any) {
+        alert("Erro ao excluir laudo: " + err.message);
+      }
+    }
+  };
+
   const resetForm = () => {
+    setEditingId(null);
     setEquipmentName(''); 
     setAiAnalysis(''); 
     setAiRecommendation(''); 
@@ -145,6 +182,7 @@ export const ThermographyManager: React.FC<ThermographyManagerProps> = ({ areas,
     setAttachmentUrl(''); 
     setAttachmentName('');
     setSelectedEquipment(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   return (
@@ -157,7 +195,7 @@ export const ThermographyManager: React.FC<ThermographyManagerProps> = ({ areas,
           <p className="text-[10px] text-slate-500 font-black uppercase tracking-[0.2em] mt-1">Gestão de Ativos em Tempo Real</p>
         </div>
         {!showForm && isEditor && (
-          <button onClick={() => setShowForm(true)} className="bg-orange-600 hover:bg-orange-500 text-white px-8 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-orange-900/20 flex items-center gap-2 transition-all active:scale-95">
+          <button onClick={() => {resetForm(); setShowForm(true);}} className="bg-orange-600 hover:bg-orange-500 text-white px-8 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-orange-900/20 flex items-center gap-2 transition-all active:scale-95">
             <Plus size={16} /> Novo Laudo Térmico
           </button>
         )}
@@ -166,7 +204,9 @@ export const ThermographyManager: React.FC<ThermographyManagerProps> = ({ areas,
       {showForm && (
         <div className="bg-slate-900/90 border border-slate-700 rounded-[2.5rem] p-8 lg:p-10 animate-slide-up ring-1 ring-white/5 shadow-2xl">
           <div className="flex justify-between items-center mb-8 border-b border-slate-800 pb-6">
-             <h3 className="text-xl font-black text-white uppercase tracking-tight">Emissão de Laudo Técnico</h3>
+             <h3 className="text-xl font-black text-white uppercase tracking-tight">
+               {editingId ? 'Editar Laudo Técnico' : 'Emissão de Laudo Técnico'}
+             </h3>
              <button onClick={() => setShowForm(false)} className="text-slate-500 hover:text-white transition-colors"><X size={20}/></button>
           </div>
           
@@ -311,7 +351,7 @@ export const ThermographyManager: React.FC<ThermographyManagerProps> = ({ areas,
                     )}
                   </div>
                   <button type="submit" disabled={loading} className="w-full bg-orange-600 hover:bg-orange-500 text-white py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-orange-900/30 transition-all active:scale-95 disabled:opacity-50">
-                    {loading ? <Loader2 size={16} className="animate-spin" /> : 'Salvar Laudo'}
+                    {loading ? <Loader2 size={16} className="animate-spin" /> : editingId ? 'Atualizar Laudo' : 'Salvar Laudo'}
                   </button>
                </div>
             </div>
@@ -346,9 +386,12 @@ export const ThermographyManager: React.FC<ThermographyManagerProps> = ({ areas,
                          </div>
                       </div>
                       <div className="flex gap-1">
-                        <button onClick={() => setShowDetails(record)} className="p-2 text-slate-600 hover:text-white transition-all"><Eye size={16} /></button>
-                        {isDev && (
-                          <button onClick={() => { if(confirm("Remover laudo?")) thermographyService.delete(record.id).then(fetchRecords); }} className="p-2 text-slate-600 hover:text-red-400 transition-all"><Trash2 size={16} /></button>
+                        <button onClick={() => setShowDetails(record)} className="p-2 text-slate-600 hover:text-white transition-all" title="Ver Detalhes"><Eye size={16} /></button>
+                        {isEditor && (
+                          <>
+                            <button onClick={() => handleEdit(record)} className="p-2 text-slate-600 hover:text-emerald-400 transition-all" title="Editar Laudo"><Edit2 size={16} /></button>
+                            <button onClick={() => handleDelete(record.id)} className="p-2 text-slate-600 hover:text-red-400 transition-all" title="Excluir Laudo"><Trash2 size={16} /></button>
+                          </>
                         )}
                       </div>
                     </div>

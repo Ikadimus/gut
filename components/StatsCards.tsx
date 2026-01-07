@@ -41,8 +41,10 @@ export const StatsCards: React.FC<StatsCardsProps> = ({
     return acc;
   }, {} as Record<string, number>);
 
-  const criticalArea = Object.entries(areaImpact).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A';
-  const instableArea = Object.entries(areaRecurrence).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A';
+  // Explicitly cast entry values to number for sorting to avoid TS errors
+  const criticalArea = Object.entries(areaImpact).sort((a, b) => (b[1] as number) - (a[1] as number))[0]?.[0] || 'N/A';
+  // Explicitly cast entry values to number for sorting to avoid TS errors
+  const instableArea = Object.entries(areaRecurrence).sort((a, b) => (b[1] as number) - (a[1] as number))[0]?.[0] || 'N/A';
 
   // Lógica de Concentração de Risco Térmico
   const equipmentStress = thermography.reduce((acc, record) => {
@@ -59,7 +61,8 @@ export const StatsCards: React.FC<StatsCardsProps> = ({
   }, {} as Record<string, number>);
 
   const stressedEquipment = equipmentStress.name || 'N/A';
-  const frequentEquipment = Object.entries(equipmentRecurrence).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A';
+  // Explicitly cast entry values to number for sorting to avoid TS errors
+  const frequentEquipment = Object.entries(equipmentRecurrence).sort((a, b) => (b[1] as number) - (a[1] as number))[0]?.[0] || 'N/A';
 
   const hasRisks = totalCriticalRisks > 0;
 
