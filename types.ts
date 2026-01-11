@@ -24,19 +24,32 @@ export enum UserRole {
   VIEWER = 'Visualizador'
 }
 
+export interface RolePermissions {
+  role: string;
+  can_view_dashboard: boolean;
+  can_view_sector: boolean;
+  can_view_gut: boolean;
+  can_view_thermo: boolean;
+  can_view_assets: boolean;
+  can_view_users: boolean;
+  can_view_settings: boolean;
+  can_view_reports: boolean;
+}
+
 export interface User {
   id: string;
   name: string;
   email: string;
   password?: string;
-  role: UserRole;
+  role: string;
+  sector?: string;
   createdAt: string;
 }
 
 export interface Equipment {
   id: string;
-  tag: string; // Identificador técnico (ex: P-101)
-  name: string; // Nome amigável (ex: Bomba de Recalque)
+  tag: string;
+  name: string;
   areaName: string;
   imageUrl?: string;
   minRotation?: number;
@@ -55,7 +68,7 @@ export interface GUTIssue {
   description: string;
   immediateAction?: string;
   area: string;
-  equipmentName?: string; // Vinculação com equipamento
+  equipmentName?: string;
   gravity: number;
   urgency: number;
   tendency: number;
@@ -66,6 +79,8 @@ export interface GUTIssue {
   aiActionSuggestion?: string;
   attachmentUrl?: string;
   attachmentName?: string;
+  resolution?: string;
+  aiResolutionEvaluation?: string;
 }
 
 export interface AIScoringResult {
@@ -90,7 +105,7 @@ export interface ThermographyRecord {
   maxTemp: number;
   minTemp: number;
   lastInspection: string;
-  createdAt: string; // Adicionado para rastreio real
+  createdAt: string;
   notes?: string;
   attachmentUrl?: string;
   attachmentName?: string;

@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { GUTIssue, Status } from '../types';
-import { X, Calendar, MapPin, Activity, AlertCircle, Bot, Zap, Info, ExternalLink, FileText, Sparkles } from 'lucide-react';
+import { X, Calendar, MapPin, Activity, AlertCircle, Bot, Zap, Info, ExternalLink, FileText, Sparkles, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { GUT_SCALES } from '../constants';
 
 interface DetailsModalProps {
@@ -15,6 +15,7 @@ export const DetailsModal: React.FC<DetailsModalProps> = ({ issue, onClose }) =>
       case Status.OPEN: return 'text-red-400 bg-red-900/30 border-red-800';
       case Status.IN_PROGRESS: return 'text-blue-400 bg-blue-900/30 border-blue-800';
       case Status.RESOLVED: return 'text-green-400 bg-green-900/30 border-green-800';
+      case Status.MITIGATED: return 'text-emerald-400 bg-emerald-900/30 border-emerald-800';
       default: return 'text-slate-400 bg-slate-800 border-slate-700';
     }
   };
@@ -87,7 +88,6 @@ export const DetailsModal: React.FC<DetailsModalProps> = ({ issue, onClose }) =>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Bloco do Problema */}
             <div className="space-y-4">
               <div className="space-y-2">
                 <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
@@ -101,7 +101,7 @@ export const DetailsModal: React.FC<DetailsModalProps> = ({ issue, onClose }) =>
               {issue.aiSuggestion && (
                 <div className="bg-purple-900/10 p-5 rounded-2xl border border-purple-800/20">
                   <h4 className="text-[9px] font-black text-purple-400 uppercase tracking-widest flex items-center gap-2 mb-2">
-                    <Bot size={14} /> Parecer Técnico IA (O Problema)
+                    <Bot size={14} /> Parecer Técnico IA (Análise)
                   </h4>
                   <p className="text-purple-200/90 text-[11px] font-medium leading-relaxed italic">
                     "{issue.aiSuggestion}"
@@ -110,7 +110,6 @@ export const DetailsModal: React.FC<DetailsModalProps> = ({ issue, onClose }) =>
               )}
             </div>
 
-            {/* Bloco da Ação */}
             <div className="space-y-4">
               <div className="space-y-2">
                 <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
@@ -124,7 +123,7 @@ export const DetailsModal: React.FC<DetailsModalProps> = ({ issue, onClose }) =>
               {issue.aiActionSuggestion && (
                 <div className="bg-emerald-900/10 p-5 rounded-2xl border border-emerald-800/20">
                   <h4 className="text-[9px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-2 mb-2">
-                    <Sparkles size={14} /> Refinamento IA (A Resposta)
+                    <Sparkles size={14} /> Refinamento IA (Proposta)
                   </h4>
                   <p className="text-emerald-100/90 text-[11px] font-bold leading-relaxed italic">
                     "{issue.aiActionSuggestion}"
@@ -133,6 +132,41 @@ export const DetailsModal: React.FC<DetailsModalProps> = ({ issue, onClose }) =>
               )}
             </div>
           </div>
+
+          {/* SEÇÃO DE RESOLUÇÃO (FINALIZAÇÃO) */}
+          {(issue.resolution || issue.aiResolutionEvaluation) && (
+             <div className="space-y-4 pt-4 border-t border-slate-800">
+                <div className="flex items-center gap-3 mb-2">
+                   <div className="p-2.5 bg-emerald-600/10 text-emerald-500 rounded-xl border border-emerald-500/20">
+                      <CheckCircle2 size={18} />
+                   </div>
+                   <h4 className="text-sm font-black text-white uppercase tracking-tight">Relatório de Encerramento</h4>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                   <div className="space-y-2">
+                      <h5 className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Solução Aplicada em Campo</h5>
+                      <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 text-xs text-slate-300 leading-relaxed font-medium">
+                         {issue.resolution || "Solução não detalhada formalmente."}
+                      </div>
+                   </div>
+
+                   {issue.aiResolutionEvaluation && (
+                      <div className="space-y-2">
+                         <h5 className="text-[9px] font-black text-purple-500 uppercase tracking-widest flex items-center gap-2">
+                           <Bot size={12}/> Veredito Técnico de Conformidade (IA)
+                         </h5>
+                         <div className="bg-purple-950/20 border border-purple-900/30 p-5 rounded-2xl flex items-start gap-3 shadow-inner">
+                            <ShieldCheck size={16} className="text-purple-400 shrink-0 mt-0.5" />
+                            <p className="text-[11px] text-slate-200 italic leading-relaxed">
+                               "{issue.aiResolutionEvaluation}"
+                            </p>
+                         </div>
+                      </div>
+                   )}
+                </div>
+             </div>
+          )}
 
           {issue.attachmentUrl && (
             <div className="space-y-3">

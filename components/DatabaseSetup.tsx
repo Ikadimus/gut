@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Terminal, Copy, Check, Database, AlertCircle, Info } from 'lucide-react';
+import { Terminal, Copy, Check, Database, AlertCircle, Info, Zap } from 'lucide-react';
 
 export const DatabaseSetup: React.FC = () => {
   const [copied, setCopied] = useState(false);
@@ -96,11 +96,12 @@ CREATE TABLE IF NOT EXISTS settings (
 );
 
 -- ==========================================
--- SCRIPT DE SINCRONIZAÇÃO (ADICIONAR COLUNAS)
--- Rode esta parte se as tabelas já existirem
+-- SCRIPT DE SINCRONIZAÇÃO (CORREÇÃO DE ERROS)
+-- RODE ESTE BLOCO SE RECEBER ERROS DE COLUNA
 -- ==========================================
 
--- Atualização de Equipamentos
+-- Correção Crítica para Equipamentos
+ALTER TABLE equipments ADD COLUMN IF NOT EXISTS installation_date DATE;
 ALTER TABLE equipments ADD COLUMN IF NOT EXISTS tag TEXT;
 ALTER TABLE equipments ADD COLUMN IF NOT EXISTS image_url TEXT;
 ALTER TABLE equipments ADD COLUMN IF NOT EXISTS min_rotation FLOAT8;
@@ -131,7 +132,6 @@ ALTER TABLE thermography ADD COLUMN IF NOT EXISTS attachment_name TEXT;
 -- 1. Vá em 'Storage' no menu lateral do Supabase.
 -- 2. Crie um Bucket chamado: attachments
 -- 3. Marque a opção 'Public' (Público).
--- 4. Sem isso, o upload de fotos e documentos falhará.
 `;
 
   const handleCopy = () => {
@@ -168,6 +168,18 @@ ALTER TABLE thermography ADD COLUMN IF NOT EXISTS attachment_name TEXT;
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
            <div className="lg:col-span-1 space-y-6">
+              <div className="bg-red-950/20 p-6 rounded-3xl border border-red-900/40 space-y-3">
+                 <h4 className="text-[10px] font-black text-red-500 uppercase tracking-widest flex items-center gap-2">
+                    <AlertCircle size={14} /> Solução de Erros de Schema
+                 </h4>
+                 <p className="text-[11px] text-red-200/80 leading-relaxed font-medium">
+                    Se você recebeu o erro <strong className="text-white">"Could not find the installation_date column"</strong>, copie este script e execute no SQL Editor do Supabase. Isso sincroniza as tabelas existentes com as novas funções do app.
+                 </p>
+                 <div className="pt-2">
+                    <button onClick={handleCopy} className="text-[8px] font-black uppercase tracking-widest bg-red-500/20 text-red-400 px-3 py-1.5 rounded-lg border border-red-500/30">Copiar Script de Correção</button>
+                 </div>
+              </div>
+
               <div className="bg-slate-950/40 p-6 rounded-3xl border border-slate-800 space-y-4">
                  <h4 className="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-2">
                     <Info size={14} className="text-blue-500" /> Fluxo de Implantação
@@ -187,14 +199,6 @@ ALTER TABLE thermography ADD COLUMN IF NOT EXISTS attachment_name TEXT;
                     ))}
                  </ol>
               </div>
-
-              <div className="bg-amber-950/20 p-6 rounded-3xl border border-amber-900/30 flex items-start gap-3">
-                 <AlertCircle size={20} className="text-amber-500 shrink-0" />
-                 <div>
-                    <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest mb-1">Nota sobre TAGS</p>
-                    <p className="text-[11px] text-amber-200/70 leading-relaxed font-medium">O campo 'tag' agora é central no inventário, permitindo que você identifique seus ativos pelo código técnico oficial da planta.</p>
-                 </div>
-              </div>
            </div>
 
            <div className="lg:col-span-2">
@@ -205,7 +209,7 @@ ALTER TABLE thermography ADD COLUMN IF NOT EXISTS attachment_name TEXT;
                        <div className="w-2 h-2 rounded-full bg-amber-500/50"></div>
                        <div className="w-2 h-2 rounded-full bg-green-500/50"></div>
                     </div>
-                    <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest">Full Schema Script</span>
+                    <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest">Full Schema Script v2.1</span>
                  </div>
                  <pre className="p-8 overflow-auto custom-scrollbar text-[11px] font-mono text-emerald-400/90 leading-relaxed selection:bg-emerald-500/20">
                     {sqlCode}

@@ -4,7 +4,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   Radar, RadarChart, PolarGrid, PolarAngleAxis, Cell, LineChart, Line, AreaChart, Area
 } from 'recharts';
-import { GUTIssue, SystemSettings, ThermographyRecord } from '../types';
+import { GUTIssue, SystemSettings, ThermographyRecord, Status } from '../types';
 import { ShieldAlert, TrendingUp, BarChart3, Thermometer, Activity, Zap } from 'lucide-react';
 
 interface ChartsProps {
@@ -15,11 +15,14 @@ interface ChartsProps {
 }
 
 export const Charts: React.FC<ChartsProps> = ({ issues, thermography = [], areas, settings }) => {
-  const relevantAreas = areas.length > 0 ? areas : Array.from(new Set([...issues.map(i => i.area), ...thermography.map(t => t.area)]));
+  // Filtramos apenas as issues que não estão resolvidas ou mitigadas para os gráficos de risco
+  const activeIssues = issues.filter(i => i.status === Status.OPEN || i.status === Status.IN_PROGRESS);
 
-  // Dados GUT
+  const relevantAreas = areas.length > 0 ? areas : Array.from(new Set([...activeIssues.map(i => i.area), ...thermography.map(t => t.area)]));
+
+  // Dados GUT - Apenas ocorrências ATIVAS
   const gutData = relevantAreas.map(area => {
-    const areaIssues = issues.filter(i => i.area === area);
+    const areaIssues = activeIssues.filter(i => i.area === area);
     return {
       name: area,
       impact: areaIssues.reduce((acc, curr) => acc + curr.score, 0),
@@ -64,11 +67,11 @@ export const Charts: React.FC<ChartsProps> = ({ issues, thermography = [], areas
     <div className="space-y-12 animate-fade-in">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         
-        {/* Radar GUT */}
+        {/* Radar GUT - Agora focado apenas no que está pendente */}
         <div className="bg-slate-900/40 p-8 rounded-[2rem] border border-slate-800 shadow-xl">
            <div className="flex justify-between items-center mb-8">
               <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.3em] flex items-center gap-3">
-                <Activity size={16} className="text-blue-500" /> Scanner de Riscos GUT
+                <Activity size={16} className="text-blue-500" /> Scanner de Riscos Ativos (GUT)
               </h3>
               <Zap size={14} className="text-blue-500/30" />
            </div>
@@ -77,18 +80,19 @@ export const Charts: React.FC<ChartsProps> = ({ issues, thermography = [], areas
                 <RadarChart cx="50%" cy="50%" outerRadius="70%" data={gutData}>
                   <PolarGrid stroke="#1e293b" />
                   <PolarAngleAxis dataKey="name" tick={{ fill: '#64748b', fontSize: 9, fontWeight: 700 }} />
-                  <Radar name="Impacto GUT" dataKey="impact" stroke={settings.accentColor} fill={settings.accentColor} fillOpacity={0.2} />
+                  <Radar name="Impacto GUT Pendente" dataKey="impact" stroke={settings.accentColor} fill={settings.accentColor} fillOpacity={0.2} />
                   <Tooltip content={<CustomTooltip />} />
                 </RadarChart>
              </ResponsiveContainer>
            </div>
+           <p className="text-[8px] text-slate-600 font-black uppercase text-center mt-4 tracking-widest">Apenas registros em Aberto ou Análise</p>
         </div>
 
         {/* Linha de Tendência Térmica */}
         <div className="bg-slate-900/40 p-8 rounded-[2rem] border border-slate-800 shadow-xl">
            <div className="flex justify-between items-center mb-8">
               <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.3em] flex items-center gap-3">
-                <Thermometer size={16} className="text-orange-500" /> Integridade de Ativos
+                <Thermometer size={16} className="text-orange-500" /> Integridade de Ativos (Termo)
               </h3>
               <TrendingUp size={14} className="text-orange-500/30" />
            </div>
@@ -110,17 +114,18 @@ export const Charts: React.FC<ChartsProps> = ({ issues, thermography = [], areas
                 </AreaChart>
              </ResponsiveContainer>
            </div>
+           <p className="text-[8px] text-slate-600 font-black uppercase text-center mt-4 tracking-widest">Médias térmicas atuais versus limites de projeto</p>
         </div>
       </div>
 
-      {/* Impacto Acumulado Bar Chart */}
+      {/* Impacto Acumulado Bar Chart - Agora apenas para pendências */}
       <div className="bg-slate-900/40 p-10 rounded-[2.5rem] border border-slate-800 shadow-2xl">
           <div className="flex flex-col md:flex-row md:items-center justify-between mb-10">
               <div>
                 <h3 className="text-sm font-black text-slate-200 uppercase tracking-[0.4em] flex items-center gap-3">
-                  <BarChart3 size={20} className="text-green-500" /> Gargalo de Riscos Acumulados
+                  <BarChart3 size={20} className="text-green-500" /> Gargalo de Riscos Pendentes
                 </h3>
-                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Soma do Score GUT por subsistema operacional</p>
+                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Soma do Score GUT apenas para ocorrências não resolvidas</p>
               </div>
           </div>
           <div className="h-80">
@@ -130,9 +135,12 @@ export const Charts: React.FC<ChartsProps> = ({ issues, thermography = [], areas
                 <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 800 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill: '#475569', fontSize: 10 }} axisLine={false} tickLine={false} />
                 <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="impact" name="Impacto Total" radius={[8, 8, 0, 0]} barSize={45}>
+                <Bar dataKey="impact" name="Impacto Pendente" radius={[8, 8, 0, 0]} barSize={45}>
                   {gutData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.impact >= settings.criticalThreshold ? settings.colorCritical : entry.impact >= settings.warningThreshold ? settings.colorWarning : settings.colorNormal} />
+                    <Cell 
+                      key={`cell-${index}`} 
+                      fill={entry.impact >= settings.criticalThreshold ? settings.colorCritical : entry.impact >= settings.warningThreshold ? settings.colorWarning : settings.colorNormal} 
+                    />
                   ))}
                 </Bar>
               </BarChart>

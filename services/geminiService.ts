@@ -57,6 +57,45 @@ export const analyzeIssueWithAI = async (
   }
 };
 
+export const evaluateResolutionWithAI = async (
+  title: string,
+  description: string,
+  resolution: string
+): Promise<string> => {
+  try {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+    const prompt = `
+      Você é um Auditor Técnico de Processos de Biometano. 
+      Analise a SOLUÇÃO que foi aplicada para o problema abaixo e dê um veredito técnico (validação).
+
+      PROBLEMA: "${title}" - ${description}
+      SOLUÇÃO APLICADA: "${resolution}"
+
+      REQUISITOS DA RESPOSTA:
+      - Seja direto e extremamente técnico.
+      - Valide se a solução resolve a causa raiz ou apenas o sintoma.
+      - Mencione riscos residuais se houver (ex: pressão, H2S, integridade de membranas).
+      - Conclua com "SOLUÇÃO VALIDADA" ou "RECOMENDA-SE REVISÃO ADICIONAL".
+      - Máximo 400 caracteres.
+    `;
+
+    const response: GenerateContentResponse = await ai.models.generateContent({
+      model: "gemini-3-pro-preview",
+      contents: prompt,
+      config: {
+        // Temperature kept at 0.5 for consistent evaluation results
+        temperature: 0.5,
+      },
+    });
+
+    return response.text || "Não foi possível gerar a avaliação técnica.";
+  } catch (error: any) {
+    console.error("Erro na avaliação da resolução:", error);
+    return "Falha técnica ao consultar a IA para avaliação da solução.";
+  }
+};
+
 export const analyzeThermographyWithAI = async (
   equipmentName: string,
   area: string,
@@ -151,7 +190,7 @@ export const explainSystemToUser = async (question: string, userName: string): P
       model: "gemini-3-flash-preview",
       contents: `USUÁRIO: ${userName}\nCONTEXTO:\n${context}\n\nPERGUNTA: ${question}`,
       config: {
-        maxOutputTokens: 1000,
+        // Temperature kept at 0.7 for varied conversational responses
         temperature: 0.7,
       },
     });

@@ -283,7 +283,10 @@ export const IssueForm: React.FC<IssueFormProps> = ({
                     <div className="flex justify-between items-center px-1">
                       <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest flex items-center gap-1">
                         {item.label}
-                        <Info size={9} className="text-slate-600 group-hover:text-green-500 transition-colors cursor-help" title={explanations[item.id as keyof typeof explanations]} />
+                        {/* Fix: Wrapped Info icon in a span to use the title attribute for tooltips as Lucide icons don't support it directly in some environments */}
+                        <span title={explanations[item.id as keyof typeof explanations]}>
+                          <Info size={9} className="text-slate-600 group-hover:text-green-500 transition-colors cursor-help" />
+                        </span>
                       </span>
                       <span className="text-green-500 font-black text-sm">{item.val}</span>
                     </div>
