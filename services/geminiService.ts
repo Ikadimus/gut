@@ -29,7 +29,7 @@ export const analyzeIssueWithAI = async (
     `;
 
     const response: GenerateContentResponse = await ai.models.generateContent({
-      model: "gemini-3-pro-preview",
+      model: "gemini-3-flash-preview",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -81,7 +81,7 @@ export const evaluateResolutionWithAI = async (
     `;
 
     const response: GenerateContentResponse = await ai.models.generateContent({
-      model: "gemini-3-pro-preview",
+      model: "gemini-3-flash-preview",
       contents: prompt,
       config: {
         // Temperature kept at 0.5 for consistent evaluation results
@@ -128,7 +128,7 @@ export const analyzeThermographyWithAI = async (
     `;
 
     const response: GenerateContentResponse = await ai.models.generateContent({
-      model: "gemini-3-pro-preview",
+      model: "gemini-3-flash-preview",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
