@@ -111,9 +111,8 @@ function App() {
       if (myPerm) {
         setUserPermissions(myPerm);
       } else {
-        // Fallback robusto caso não encontre no DB
-        const isAdmin = currentUser.role === 'Administrador' || currentUser.role === 'Desenvolvedor';
-        const isEditor = currentUser.role === 'Editor';
+        const isAdmin = currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.DEVELOPER;
+        const isEditor = currentUser.role === UserRole.EDITOR;
         setUserPermissions({
           role: currentUser.role,
           can_view_dashboard: true,
@@ -239,13 +238,13 @@ function App() {
     return <Login onLoginSuccess={setCurrentUser} />;
   }
 
-  const isDev = currentUser.role === 'Desenvolvedor';
-  const isAdmin = currentUser.role === 'Administrador' || isDev;
-  const isEditor = currentUser.role === 'Editor';
+  const isDev = currentUser.role === UserRole.DEVELOPER;
+  const isAdmin = currentUser.role === UserRole.ADMIN || isDev;
 
   const canSeeSector = (sectorId: string) => {
     if (isAdmin) return true;
     if (!userPermissions?.can_view_sector) return false;
+    if (!currentUser.sector) return false;
     
     const sectorMap: Record<string, string> = {
       'mecanica-lub': 'Mecanica e lub',
@@ -254,7 +253,11 @@ function App() {
       'quimica': 'quimica'
     };
     
-    return currentUser.sector?.toLowerCase() === sectorMap[sectorId]?.toLowerCase();
+    // Comparação robusta sem espaços e sem case sensitivity
+    const targetName = sectorMap[sectorId]?.toLowerCase().trim();
+    const userSector = currentUser.sector.toLowerCase().trim();
+    
+    return userSector === targetName;
   };
 
   const NavButton = ({ target, icon: Icon, label, colorClass, visible, isSubItem = false }: any) => {

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Bell, AlertTriangle, Thermometer, Waves, X, Circle, Info, ArrowRight, Zap } from 'lucide-react';
-import { GUTIssue, ThermographyRecord, VibrationRecord, User, Status } from '../types';
+import { GUTIssue, ThermographyRecord, VibrationRecord, User, Status, UserRole } from '../types';
 
 interface NotificationBellProps {
   user: User;
@@ -20,7 +20,6 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Fechar ao clicar fora
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -31,21 +30,29 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const isAdmin = user.role === UserRole.ADMIN || user.role === UserRole.DEVELOPER;
+
   // 1. Alertas de Setor (Pendentes)
-  const sectorAlerts = issues.filter(i => 
-    i.sector === user.sector && i.status !== Status.RESOLVED
-  );
+  // Editores e Visualizadores veem APENAS o que é do setor deles.
+  const sectorAlerts = issues.filter(i => {
+    const isSameSector = i.sector?.toLowerCase().trim() === user.sector?.toLowerCase().trim();
+    return isSameSector && i.status !== Status.RESOLVED;
+  });
 
-  // 2. Alertas Críticos Globais (GUT > 80)
-  const criticalGUT = issues.filter(i => i.score >= 81 && i.status !== Status.RESOLVED);
+  // 2. Alertas Críticos Globais (Apenas Administradores veem alertas de OUTROS setores)
+  const criticalGUT = isAdmin 
+    ? issues.filter(i => i.score >= 81 && i.status !== Status.RESOLVED && i.sector !== user.sector)
+    : [];
 
-  // 3. Termografia Crítica
-  const criticalThermo = thermography.filter(t => t.currentTemp >= t.maxTemp);
+  // 3. Termografia Crítica (Apenas Administradores por padrão, ou se houver mapeamento futuro)
+  const criticalThermo = isAdmin 
+    ? thermography.filter(t => t.currentTemp >= t.maxTemp)
+    : [];
 
-  // 4. Vibração Perigosa/Crítica
-  const criticalVib = vibration.filter(v => 
-    v.riskLevel === 'Crítico' || v.riskLevel === 'Perigoso'
-  );
+  // 4. Vibração Perigosa (Apenas Administradores)
+  const criticalVib = isAdmin 
+    ? vibration.filter(v => v.riskLevel === 'Crítico' || v.riskLevel === 'Perigoso')
+    : [];
 
   const totalCount = sectorAlerts.length + criticalGUT.length + criticalThermo.length + criticalVib.length;
 
@@ -75,7 +82,9 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
           <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-950/40">
              <div>
                 <h4 className="text-xs font-black text-white uppercase tracking-widest">Central de Alertas</h4>
-                <p className="text-[8px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">Sincronização BIOHUB</p>
+                <p className="text-[8px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">
+                  {isAdmin ? 'Visão Global Administrador' : `Visão Setorial: ${user.sector || 'N/A'}`}
+                </p>
              </div>
              <button onClick={() => setIsOpen(false)} className="text-slate-500 hover:text-white transition-colors p-1"><X size={18}/></button>
           </div>
@@ -88,7 +97,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
               </div>
             ) : (
               <>
-                {/* SETOR DO USUÁRIO */}
+                {/* SETOR DO USUÁRIO - Prioridade Máxima */}
                 {sectorAlerts.length > 0 && (
                   <div className="space-y-1.5">
                     <p className="px-2 text-[8px] font-black text-blue-500 uppercase tracking-widest mb-2 flex items-center gap-2">
@@ -113,11 +122,11 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
                   </div>
                 )}
 
-                {/* RISCOS CRÍTICOS GLOBAIS */}
-                {(criticalGUT.length > 0 || criticalThermo.length > 0 || criticalVib.length > 0) && (
+                {/* RISCOS CRÍTICOS DE OUTROS SETORES - Apenas para Admins */}
+                {isAdmin && (criticalGUT.length > 0 || criticalThermo.length > 0 || criticalVib.length > 0) && (
                   <div className="space-y-1.5 pt-3">
                     <p className="px-2 text-[8px] font-black text-red-500 uppercase tracking-widest mb-2 flex items-center gap-2">
-                       <AlertTriangle size={10}/> Alertas de Risco Global
+                       <AlertTriangle size={10}/> Riscos Globais (Outros Setores)
                     </p>
                     
                     {criticalGUT.map(alert => (
@@ -129,7 +138,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
                          <AlertTriangle size={14} className="text-red-500 shrink-0" />
                          <div className="flex-1 overflow-hidden">
                             <p className="text-[11px] font-black text-white uppercase truncate">{alert.title}</p>
-                            <p className="text-[8px] text-red-400 font-bold uppercase tracking-tight">GUT CRÍTICO • {alert.score} PTS</p>
+                            <p className="text-[8px] text-red-400 font-bold uppercase tracking-tight">{alert.sector?.toUpperCase()} • {alert.score} PTS</p>
                          </div>
                       </button>
                     ))}
