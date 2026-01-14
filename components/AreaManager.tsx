@@ -18,7 +18,6 @@ export const AreaManager: React.FC<AreaManagerProps> = ({ areas, onUpdateAreas, 
   const [activeTab, setActiveTab] = useState<'general' | 'assets' | 'rbac' | 'database'>('general');
   const [newArea, setNewArea] = useState('');
   const [newSector, setNewSector] = useState('');
-  const [newRole, setNewRole] = useState('');
   const [loading, setLoading] = useState(false);
   const [localSettings, setLocalSettings] = useState<SystemSettings>(initialSettings);
   
@@ -76,18 +75,6 @@ export const AreaManager: React.FC<AreaManagerProps> = ({ areas, onUpdateAreas, 
     }
   };
 
-  const handleAddRole = async () => {
-    if (newRole.trim()) {
-      try {
-        setLoading(true);
-        await permissionService.create(newRole.trim());
-        await fetchRBACData();
-        setNewRole('');
-      } catch (err) { alert("Erro ao adicionar nível de acesso."); }
-      finally { setLoading(false); }
-    }
-  };
-
   const handleTogglePermission = async (role: string, key: keyof RolePermissions) => {
     const perm = permissions.find(p => p.role === role);
     if (!perm) return;
@@ -110,7 +97,7 @@ export const AreaManager: React.FC<AreaManagerProps> = ({ areas, onUpdateAreas, 
   };
 
   const isProtectedRole = (role: string) => {
-    return ['Desenvolvedor', 'Administrador', 'Visualizador'].includes(role);
+    return ['Desenvolvedor', 'Administrador', 'Visualizador', 'Editor'].includes(role);
   };
 
   return (
@@ -227,21 +214,6 @@ export const AreaManager: React.FC<AreaManagerProps> = ({ areas, onUpdateAreas, 
                       </div>
                    </div>
                 </div>
-
-                <div className="bg-slate-900/40 border-l-4 border-l-purple-600 border border-slate-800 rounded-2xl p-6 shadow-xl">
-                   <div className="flex items-center gap-3 mb-6">
-                      <div className="p-2.5 bg-purple-600/10 text-purple-500 rounded-xl border border-purple-500/20">
-                         <Shield size={18} />
-                      </div>
-                      <h3 className="text-xs font-black text-white uppercase tracking-widest">Criar Nível de Acesso</h3>
-                   </div>
-                   <div className="space-y-4">
-                      <div className="flex gap-2">
-                         <input type="text" value={newRole} onChange={e => setNewRole(e.target.value)} placeholder="Ex: Eletrotécnico..." className="flex-1 bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white outline-none" />
-                         <button onClick={handleAddRole} className="bg-purple-600 text-white p-3 rounded-xl hover:bg-purple-500 transition-all"><Plus size={16} /></button>
-                      </div>
-                   </div>
-                </div>
              </div>
              
              <div className="lg:col-span-8">
@@ -252,7 +224,7 @@ export const AreaManager: React.FC<AreaManagerProps> = ({ areas, onUpdateAreas, 
                       </div>
                       <div>
                         <h3 className="text-lg font-black text-white uppercase tracking-tight">Matriz de Visibilidade de Abas</h3>
-                        <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Configure o que cada nível pode acessar no sistema</p>
+                        <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Controle de acesso para os níveis padrão</p>
                       </div>
                    </div>
 
@@ -270,7 +242,6 @@ export const AreaManager: React.FC<AreaManagerProps> = ({ areas, onUpdateAreas, 
                                <th className="px-2 py-4 text-center">Relat.</th>
                                <th className="px-2 py-4 text-center">User</th>
                                <th className="px-2 py-4 text-center">Config</th>
-                               <th className="px-2 py-4 text-center">Del</th>
                             </tr>
                          </thead>
                          <tbody className="divide-y divide-slate-900">
@@ -295,26 +266,10 @@ export const AreaManager: React.FC<AreaManagerProps> = ({ areas, onUpdateAreas, 
                                        </button>
                                     </td>
                                   ))}
-                                  <td className="px-2 py-5 text-center">
-                                     {!isProtectedRole(p.role) && (
-                                       <button 
-                                         onClick={async () => { if(confirm(`Remover nível "${p.role}"?`)) { await permissionService.remove(p.role); await fetchRBACData(); } }}
-                                         className="p-2 text-slate-700 hover:text-red-500 transition-all mx-auto"
-                                       >
-                                          <Trash2 size={12} />
-                                       </button>
-                                     )}
-                                  </td>
                                </tr>
                             ))}
                          </tbody>
                       </table>
-                   </div>
-                   <div className="mt-6 bg-slate-900/50 p-4 rounded-xl flex items-start gap-3 border border-slate-800">
-                      <Info size={16} className="text-blue-500 shrink-0 mt-0.5" />
-                      <p className="text-[10px] text-slate-400 leading-relaxed font-medium">
-                        As alterações de permissão são aplicadas em tempo real. Se uma aba for removida, ela deixará de aparecer no menu lateral para usuários desse nível.
-                      </p>
                    </div>
                 </div>
              </div>

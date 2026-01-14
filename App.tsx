@@ -110,6 +110,22 @@ function App() {
       const myPerm = allPerms.find(p => p.role === currentUser.role);
       if (myPerm) {
         setUserPermissions(myPerm);
+      } else {
+        // Fallback robusto caso não encontre no DB
+        const isAdmin = currentUser.role === 'Administrador' || currentUser.role === 'Desenvolvedor';
+        const isEditor = currentUser.role === 'Editor';
+        setUserPermissions({
+          role: currentUser.role,
+          can_view_dashboard: true,
+          can_view_sector: true,
+          can_view_gut: true,
+          can_view_thermo: true,
+          can_view_vibration: true,
+          can_view_assets: true,
+          can_view_users: isAdmin,
+          can_view_settings: isAdmin,
+          can_view_reports: isAdmin || isEditor
+        });
       }
     } catch (err) { console.error("Erro permissions:", err); }
   };
@@ -225,7 +241,21 @@ function App() {
 
   const isDev = currentUser.role === 'Desenvolvedor';
   const isAdmin = currentUser.role === 'Administrador' || isDev;
-  const isEditor = currentUser.role !== 'Visualizador';
+  const isEditor = currentUser.role === 'Editor';
+
+  const canSeeSector = (sectorId: string) => {
+    if (isAdmin) return true;
+    if (!userPermissions?.can_view_sector) return false;
+    
+    const sectorMap: Record<string, string> = {
+      'mecanica-lub': 'Mecanica e lub',
+      'eletrica-instr': 'eletrica e instrumentação',
+      'operacao': 'operação',
+      'quimica': 'quimica'
+    };
+    
+    return currentUser.sector?.toLowerCase() === sectorMap[sectorId]?.toLowerCase();
+  };
 
   const NavButton = ({ target, icon: Icon, label, colorClass, visible, isSubItem = false }: any) => {
     if (visible === false) return null;
@@ -312,16 +342,16 @@ function App() {
 
             <div className="pt-4 space-y-1">
                <p className={`text-[7px] font-black text-slate-600 uppercase tracking-[0.3em] mb-2 ml-3 ${!sidebarOpen && 'hidden'}`}>Setores Operacionais</p>
-               <NavButton target="sector-mecanica-lub" icon={Wrench} label="Mecânica e Lub" colorClass="bg-blue-600 text-white" visible={userPermissions?.can_view_sector} />
-               <NavButton target="sector-eletrica-instr" icon={Zap} label="Elétrica e Instr" colorClass="bg-yellow-600 text-white" visible={userPermissions?.can_view_sector} />
-               <NavButton target="sector-operacao" icon={ClipboardCheck} label="Operação" colorClass="bg-emerald-600 text-white" visible={userPermissions?.can_view_sector} />
-               <NavButton target="sector-quimica" icon={FlaskConical} label="Química" colorClass="bg-pink-600 text-white" visible={userPermissions?.can_view_sector} />
+               <NavButton target="sector-mecanica-lub" icon={Wrench} label="Mecânica e Lub" colorClass="bg-blue-600 text-white" visible={canSeeSector('mecanica-lub')} />
+               <NavButton target="sector-eletrica-instr" icon={Zap} label="Elétrica e Instr" colorClass="bg-yellow-600 text-white" visible={canSeeSector('eletrica-instr')} />
+               <NavButton target="sector-operacao" icon={ClipboardCheck} label="Operação" colorClass="bg-emerald-600 text-white" visible={canSeeSector('operacao')} />
+               <NavButton target="sector-quimica" icon={FlaskConical} label="Química" colorClass="bg-pink-600 text-white" visible={canSeeSector('quimica')} />
             </div>
 
             <div className="pt-4 space-y-1 pb-4">
                <p className={`text-[7px] font-black text-slate-600 uppercase tracking-[0.3em] mb-2 ml-3 ${!sidebarOpen && 'hidden'}`}>Administração</p>
                <NavButton target="users" icon={Users} label="Usuários" colorClass="bg-purple-600 text-white" visible={userPermissions?.can_view_users} />
-               <NavButton target="reports" icon={FileSpreadsheet} label="Relatórios" colorClass="bg-emerald-600 text-white" visible={userPermissions?.can_view_reports || isAdmin} />
+               <NavButton target="reports" icon={FileSpreadsheet} label="Relatórios" colorClass="bg-emerald-600 text-white" visible={userPermissions?.can_view_reports} />
                <NavButton target="areas" icon={Settings} label="Configuração" colorClass="bg-green-600 text-white" visible={userPermissions?.can_view_settings} />
             </div>
           </div>
@@ -363,10 +393,10 @@ function App() {
                   <Charts issues={issues} thermography={thermography} areas={areas} settings={settings} />
                 </div>
               )}
-              {view === 'reports' && (userPermissions?.can_view_reports || isAdmin) && (
+              {view === 'reports' && userPermissions?.can_view_reports && (
                 <ReportsManager onCancel={() => setView('dashboard')} />
               )}
-              {view.startsWith('sector-') && userPermissions?.can_view_sector && (
+              {view.startsWith('sector-') && canSeeSector(view.replace('sector-', '')) && (
                 <div className="space-y-6">
                   {showForm ? (
                     <IssueForm 
@@ -393,7 +423,7 @@ function App() {
               )}
               {view === 'gut' && userPermissions?.can_view_gut && (
                 <div className="space-y-6">
-                   {showForm ? <IssueForm onSave={handleSaveIssue} onCancel={() => {setShowForm(false); setCurrentIssue(null);}} onDelete={async (id) => { if (!isAdmin) return; await issueService.delete(id); setIssues(prev => prev.filter(i => i.id !== id)); setShowForm(false); }} areas={areas.length > 0 ? areas : ["Geral"]} initialData={currentIssue} onConnectAI={handleConnectAi} isAIConnected={aiConnected} /> : <GUTTable issues={issues} onStatusChange={handleStatusChangeAttempt} onEdit={(id) => { const issue = issues.find(i => i.id === id); if (issue) { setCurrentIssue(issue); setShowForm(true); } }} onDetails={(id) => { const issue = issues.find(i => i.id === id); if (issue) { setCurrentIssue(issue); setShowDetails(true); } }} onAdd={isEditor ? () => { setCurrentIssue(null); setShowForm(true); } : undefined} />}
+                   {showForm ? <IssueForm onSave={handleSaveIssue} onCancel={() => {setShowForm(false); setCurrentIssue(null);}} onDelete={async (id) => { if (!isAdmin) return; await issueService.delete(id); setIssues(prev => prev.filter(i => i.id !== id)); setShowForm(false); }} areas={areas.length > 0 ? areas : ["Geral"]} initialData={currentIssue} onConnectAI={handleConnectAi} isAIConnected={aiConnected} /> : <GUTTable issues={issues} onStatusChange={handleStatusChangeAttempt} onEdit={(id) => { const issue = issues.find(i => i.id === id); if (issue) { setCurrentIssue(issue); setShowForm(true); } }} onDetails={(id) => { const issue = issues.find(i => i.id === id); if (issue) { setCurrentIssue(issue); setShowDetails(true); } }} onAdd={!UserRole.VIEWER ? () => { setCurrentIssue(null); setShowForm(true); } : undefined} />}
                 </div>
               )}
               {view === 'thermography' && userPermissions?.can_view_thermo && <ThermographyManager areas={areas} userRole={currentUser.role as UserRole} onViewEquipmentProfile={onViewProfile} />}

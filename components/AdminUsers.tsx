@@ -11,21 +11,26 @@ interface AdminUsersProps {
 export const AdminUsers: React.FC<AdminUsersProps> = ({ currentUser }) => {
   const [users, setUsers] = useState<User[]>([]);
   const [sectors, setSectors] = useState<string[]>([]);
-  const [availableRoles, setAvailableRoles] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
+
+  // Added fix: Define isDev for component scope using UserRole enum.
+  const isDev = currentUser.role === UserRole.DEVELOPER;
 
   // Form states
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState('');
+  const [role, setRole] = useState('Visualizador');
   const [sector, setSector] = useState('');
+
+  // Níveis de acesso fixos
+  const FIXED_ROLES = ['Administrador', 'Editor', 'Visualizador'];
 
   useEffect(() => {
     fetchUsers();
-    fetchSectorsAndRoles();
+    fetchSectors();
   }, []);
 
   const fetchUsers = async () => {
@@ -37,18 +42,13 @@ export const AdminUsers: React.FC<AdminUsersProps> = ({ currentUser }) => {
     finally { setLoading(false); }
   };
 
-  const fetchSectorsAndRoles = async () => {
+  const fetchSectors = async () => {
     try {
-      const [s, p] = await Promise.all([
-        sectorService.getAll(),
-        permissionService.getAll()
-      ]);
-      setSectors(s);
-      const roles = p.map(perm => perm.role);
-      setAvailableRoles(roles);
-      
-      if (s.length > 0) setSector(s[0]);
-      if (roles.length > 0) setRole(roles[0]);
+      const s = await sectorService.getAll();
+      // Remove duplicatas de string caso existam no DB
+      const uniqueSectors = Array.from(new Set(s.map(item => item.trim())));
+      setSectors(uniqueSectors);
+      if (uniqueSectors.length > 0) setSector(uniqueSectors[0]);
     } catch (err) { console.error(err); }
   };
 
@@ -100,24 +100,24 @@ export const AdminUsers: React.FC<AdminUsersProps> = ({ currentUser }) => {
 
   const resetForm = () => {
     setName(''); setEmail(''); setPassword(''); 
-    setRole(availableRoles[0] || 'Visualizador');
+    setRole('Visualizador');
     setSector(sectors.length > 0 ? sectors[0] : '');
   };
 
   const canEdit = (target: User) => {
-    if (currentUser.role === 'Desenvolvedor') return true;
+    if (currentUser.role === UserRole.DEVELOPER) return true;
     if (currentUser.id === target.id) return true;
-    if (currentUser.role === 'Administrador') {
-      return target.role !== 'Desenvolvedor';
+    if (currentUser.role === UserRole.ADMIN) {
+      return target.role !== UserRole.DEVELOPER;
     }
     return false;
   };
 
   const canDelete = (target: User) => {
     if (target.email === 'efilho@essencisbiometano.com.br') return false;
-    if (currentUser.role === 'Desenvolvedor') return currentUser.id !== target.id;
-    if (currentUser.role === 'Administrador') {
-      return target.role !== 'Desenvolvedor' && target.role !== 'Administrador';
+    if (currentUser.role === UserRole.DEVELOPER) return currentUser.id !== target.id;
+    if (currentUser.role === UserRole.ADMIN) {
+      return target.role !== UserRole.DEVELOPER && target.role !== UserRole.ADMIN;
     }
     return false;
   };
@@ -147,7 +147,7 @@ export const AdminUsers: React.FC<AdminUsersProps> = ({ currentUser }) => {
             <h3 className="font-black text-slate-100 uppercase text-xs tracking-[0.3em]">
               {editingUserId ? 'Editar Usuário' : 'Cadastrar Novo Acesso'}
             </h3>
-            <button onClick={() => setShowAddForm(false)} className="text-slate-500 hover:text-white"><X size={20}/></button>
+            <button onClick={() => { setShowAddForm(false); setEditingUserId(null); resetForm(); }} className="text-slate-500 hover:text-white"><X size={20}/></button>
           </div>
           <form onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
             <div className="space-y-2">
@@ -165,7 +165,8 @@ export const AdminUsers: React.FC<AdminUsersProps> = ({ currentUser }) => {
             <div className="space-y-2">
               <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Nível de Acesso</label>
               <select value={role} onChange={e => setRole(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-slate-100 outline-none">
-                {availableRoles.map(r => <option key={r} value={r}>{r}</option>)}
+                {FIXED_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                {isDev && <option value="Desenvolvedor">Desenvolvedor</option>}
               </select>
             </div>
             <div className="space-y-2">
@@ -209,8 +210,8 @@ export const AdminUsers: React.FC<AdminUsersProps> = ({ currentUser }) => {
                 </td>
                 <td className="px-6 py-4">
                   <span className={`mx-auto px-3 py-1 rounded-full text-[9px] font-black uppercase border flex items-center gap-1 w-fit
-                    ${u.role === 'Desenvolvedor' ? 'text-purple-400 border-purple-800/50' :
-                      u.role === 'Administrador' ? 'text-red-400 border-red-800/50' : 'text-slate-400 border-slate-700'}`}>
+                    ${u.role === UserRole.DEVELOPER ? 'text-purple-400 border-purple-800/50' :
+                      u.role === UserRole.ADMIN ? 'text-red-400 border-red-800/50' : 'text-slate-400 border-slate-700'}`}>
                     {u.role}
                   </span>
                 </td>

@@ -203,7 +203,11 @@ export const analyzeVibrationWithAI = async (
       },
     });
 
-    return JSON.parse(response.text.trim()) as AIVibrationResult;
+    // Added fix: safety check for response.text property.
+    const text = response.text;
+    if (!text) throw new Error("A IA retornou uma resposta vazia.");
+
+    return JSON.parse(text.trim()) as AIVibrationResult;
   } catch (error: any) {
     console.error("Erro na IA de Vibração:", error);
     throw new Error("Falha na análise vibracional da IA.");
