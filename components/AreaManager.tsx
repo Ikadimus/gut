@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, X, Gauge, Cpu, Eye, Info, Shield, Briefcase, Settings2 as ConfigIcon, Layers, Thermometer, Database, Settings2, FileSpreadsheet, Waves } from 'lucide-react';
+import { Plus, Trash2, X, Gauge, Cpu, Eye, Info, Shield, Briefcase, Settings2 as ConfigIcon, Layers, Thermometer, Database, Settings2, FileSpreadsheet, Waves, Terminal } from 'lucide-react';
 import { areaService, settingsService, equipmentService, storageService, sectorService, permissionService } from '../services/supabase';
 import { SystemSettings, User, UserRole, Equipment, RolePermissions } from '../types';
+import { DatabaseSetup } from './DatabaseSetup';
 
 interface AreaManagerProps {
   areas: string[];
@@ -14,7 +15,7 @@ interface AreaManagerProps {
 }
 
 export const AreaManager: React.FC<AreaManagerProps> = ({ areas, onUpdateAreas, onCancel, initialSettings, onUpdateSettings, currentUser }) => {
-  const [activeTab, setActiveTab] = useState<'general' | 'assets' | 'rbac'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'assets' | 'rbac' | 'database'>('general');
   const [newArea, setNewArea] = useState('');
   const [newSector, setNewSector] = useState('');
   const [newRole, setNewRole] = useState('');
@@ -125,13 +126,18 @@ export const AreaManager: React.FC<AreaManagerProps> = ({ areas, onUpdateAreas, 
               <p className="text-[9px] text-slate-500 font-black uppercase tracking-[0.2em] mt-0.5">Gestão de Infraestrutura, Ativos e Acessos</p>
             </div>
             <div className="flex gap-2">
-               {['general', 'rbac', 'assets'].map((t) => (
+               {[
+                 { id: 'general', label: 'Geral' },
+                 { id: 'rbac', label: 'Acessos & Setores' },
+                 { id: 'assets', label: 'Lista Ativos' },
+                 { id: 'database', label: 'Banco de Dados' }
+               ].map((t) => (
                  <button 
-                  key={t}
-                  onClick={() => setActiveTab(t as any)}
-                  className={`px-5 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${activeTab === t ? 'bg-green-600 text-white border-green-500 shadow-lg shadow-green-900/20' : 'bg-slate-900 text-slate-500 border-slate-800 hover:text-white'}`}
+                  key={t.id}
+                  onClick={() => setActiveTab(t.id as any)}
+                  className={`px-5 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${activeTab === t.id ? 'bg-green-600 text-white border-green-500 shadow-lg shadow-green-900/20' : 'bg-slate-900 text-slate-500 border-slate-800 hover:text-white'}`}
                  >
-                   {t === 'general' ? 'Geral' : t === 'rbac' ? 'Acessos & Setores' : 'Lista Ativos'}
+                   {t.label}
                  </button>
                ))}
                <button onClick={onCancel} className="px-5 py-2.5 bg-slate-950 hover:bg-slate-900 text-slate-500 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-widest border border-slate-800 transition-all ml-4">Voltar</button>
@@ -345,6 +351,12 @@ export const AreaManager: React.FC<AreaManagerProps> = ({ areas, onUpdateAreas, 
                    </table>
                 </div>
              </div>
+          </div>
+        )}
+
+        {activeTab === 'database' && (
+          <div className="animate-fade-in">
+             <DatabaseSetup />
           </div>
         )}
     </div>

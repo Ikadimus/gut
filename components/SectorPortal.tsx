@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { User, GUTIssue, Status } from '../types';
-import { Wrench, Zap, Droplets, FlaskConical, Radio, ClipboardCheck, Activity, HardDrive, Construction, AlertCircle, Info } from 'lucide-react';
+import { Wrench, Zap, Droplets, FlaskConical, Radio, ClipboardCheck, Activity, HardDrive, Construction, AlertCircle, Info, Plus } from 'lucide-react';
 import { GUTTable } from './GUTTable';
 
 interface SectorPortalProps {

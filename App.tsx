@@ -232,7 +232,7 @@ function App() {
     const isActive = view === target;
     return (
       <button 
-        onClick={() => setView(target)}
+        onClick={() => {setView(target); setShowForm(false); setCurrentIssue(null);}}
         className={`w-full flex items-center ${sidebarOpen ? `px-3 ${isSubItem ? 'ml-2 border-l border-slate-800' : ''} justify-start` : 'px-0 justify-center'} py-2.5 rounded-xl font-black text-[9px] uppercase tracking-widest transition-all group ${isActive ? `${colorClass} shadow-lg shadow-black/20` : 'text-slate-500 hover:text-white hover:bg-slate-800/50'}`}
       >
         <Icon size={14} className={`${isActive ? 'scale-110' : 'opacity-50 group-hover:opacity-100'} transition-transform shrink-0`} />
@@ -248,7 +248,7 @@ function App() {
           {sidebarOpen ? <ChevronLeft size={12}/> : <ChevronRight size={12}/>}
         </button>
         <div className="p-4 flex flex-col items-center overflow-y-auto custom-scrollbar h-full">
-          <div className="flex flex-col items-center group cursor-pointer mb-6 shrink-0" onClick={() => setView('dashboard')}>
+          <div className="flex flex-col items-center group cursor-pointer mb-6 shrink-0" onClick={() => {setView('dashboard'); setShowForm(false);}}>
              {sidebarOpen ? (
                <span className="font-black text-white italic tracking-tighter text-xl animate-fade-in">
                  BIOMETANO <span className="text-orange-500">Caieiras</span>
@@ -266,8 +266,8 @@ function App() {
                 vibration={vibration}
                 sidebarOpen={sidebarOpen}
                 onViewGUT={(id) => { const issue = issues.find(i => i.id === id); if (issue) { setCurrentIssue(issue); setShowDetails(true); setView('gut'); } }}
-                onViewThermo={() => setView('thermography')}
-                onViewVib={() => setView('vibration')}
+                onViewThermo={() => {setView('thermography'); setShowForm(false);}}
+                onViewVib={() => {setView('vibration'); setShowForm(false);}}
               />
               {sidebarOpen && (
                 <div className="bg-slate-800/50 border border-slate-700 rounded-xl px-3 py-2 flex-1 flex items-center justify-between">
@@ -367,19 +367,33 @@ function App() {
                 <ReportsManager onCancel={() => setView('dashboard')} />
               )}
               {view.startsWith('sector-') && userPermissions?.can_view_sector && (
-                <SectorPortal 
-                  sectorId={view.replace('sector-', '')} 
-                  issues={issues} 
-                  currentUser={currentUser}
-                  onNavigate={(target: any) => setView(target)}
-                  onStatusChange={handleStatusChangeAttempt}
-                  onEdit={(id) => { const issue = issues.find(i => i.id === id); if (issue) { setCurrentIssue(issue); setShowForm(true); } }}
-                  onDetails={(id) => { const issue = issues.find(i => i.id === id); if (issue) { setCurrentIssue(issue); setShowDetails(true); } }}
-                />
+                <div className="space-y-6">
+                  {showForm ? (
+                    <IssueForm 
+                      onSave={handleSaveIssue} 
+                      onCancel={() => {setShowForm(false); setCurrentIssue(null);}} 
+                      onDelete={async (id) => { if (!isAdmin) return; await issueService.delete(id); setIssues(prev => prev.filter(i => i.id !== id)); setShowForm(false); }} 
+                      areas={areas.length > 0 ? areas : ["Geral"]} 
+                      initialData={currentIssue} 
+                      onConnectAI={handleConnectAi} 
+                      isAIConnected={aiConnected} 
+                    />
+                  ) : (
+                    <SectorPortal 
+                      sectorId={view.replace('sector-', '')} 
+                      issues={issues} 
+                      currentUser={currentUser}
+                      onNavigate={(target: any) => setView(target)}
+                      onStatusChange={handleStatusChangeAttempt}
+                      onEdit={(id) => { const issue = issues.find(i => i.id === id); if (issue) { setCurrentIssue(issue); setShowForm(true); } }}
+                      onDetails={(id) => { const issue = issues.find(i => i.id === id); if (issue) { setCurrentIssue(issue); setShowDetails(true); } }}
+                    />
+                  )}
+                </div>
               )}
               {view === 'gut' && userPermissions?.can_view_gut && (
                 <div className="space-y-6">
-                   {showForm ? <IssueForm onSave={handleSaveIssue} onCancel={() => {setShowForm(false); setCurrentIssue(null);}} onDelete={async (id) => { if (!isAdmin) return; await issueService.delete(id); setIssues(prev => prev.filter(i => i.id !== id)); setShowForm(false); }} areas={areas.length > 0 ? areas : ["Geral"]} initialData={currentIssue} onConnectAI={handleConnectAi} isAIConnected={aiConnected} /> : <GUTTable issues={issues} onStatusChange={handleStatusChangeAttempt} onEdit={(id) => { const issue = issues.find(i => i.id === id); if (issue) { setCurrentIssue(issue); setShowForm(true); } }} onDetails={(id) => { const issue = issues.find(i => i.id === id); if (issue) { setCurrentIssue(issue); setShowDetails(true); } }} onAdd={isEditor ? () => setShowForm(true) : undefined} />}
+                   {showForm ? <IssueForm onSave={handleSaveIssue} onCancel={() => {setShowForm(false); setCurrentIssue(null);}} onDelete={async (id) => { if (!isAdmin) return; await issueService.delete(id); setIssues(prev => prev.filter(i => i.id !== id)); setShowForm(false); }} areas={areas.length > 0 ? areas : ["Geral"]} initialData={currentIssue} onConnectAI={handleConnectAi} isAIConnected={aiConnected} /> : <GUTTable issues={issues} onStatusChange={handleStatusChangeAttempt} onEdit={(id) => { const issue = issues.find(i => i.id === id); if (issue) { setCurrentIssue(issue); setShowForm(true); } }} onDetails={(id) => { const issue = issues.find(i => i.id === id); if (issue) { setCurrentIssue(issue); setShowDetails(true); } }} onAdd={isEditor ? () => { setCurrentIssue(null); setShowForm(true); } : undefined} />}
                 </div>
               )}
               {view === 'thermography' && userPermissions?.can_view_thermo && <ThermographyManager areas={areas} userRole={currentUser.role as UserRole} onViewEquipmentProfile={onViewProfile} />}
@@ -397,7 +411,7 @@ function App() {
       
       {aiAssistantOpen && (
         <div className="fixed inset-0 z-[200] flex items-end justify-end p-6 bg-slate-950/40 backdrop-blur-sm animate-fade-in pointer-events-none">
-           <div className="w-full max-w-sm bg-slate-900 border border-white/10 rounded-[2.5rem] shadow-2xl overflow-hidden animate-slide-up ring-1 ring-white/10 flex flex-col h-[520px] pointer-events-auto">
+           <div className="w-full max-sm bg-slate-900 border border-white/10 rounded-[2.5rem] shadow-2xl overflow-hidden animate-slide-up ring-1 ring-white/10 flex flex-col h-[520px] pointer-events-auto">
               <div className="p-6 border-b border-white/5 flex justify-between items-center bg-slate-950/40">
                  <div className="flex items-center gap-3">
                     <div className="p-2.5 bg-orange-600/10 text-orange-500 rounded-xl border border-orange-500/20">
