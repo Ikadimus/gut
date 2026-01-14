@@ -1,8 +1,8 @@
 
 import React, { useState } from 'react';
-import { FileDown, Calendar, CheckSquare, Square, Download, Loader2, Table as TableIcon, FileSpreadsheet } from 'lucide-react';
-import { GUTIssue, ThermographyRecord } from '../types';
-import { issueService, thermographyService } from '../services/supabase';
+import { FileDown, Calendar, CheckSquare, Square, Download, Loader2, Table as TableIcon, FileSpreadsheet, Waves } from 'lucide-react';
+import { GUTIssue, ThermographyRecord, VibrationRecord } from '../types';
+import { issueService, thermographyService, vibrationService } from '../services/supabase';
 
 // Usaremos a biblioteca xlsx via esm.sh
 import * as XLSX from 'https://esm.sh/xlsx@0.18.5';
@@ -36,23 +36,38 @@ const THERMO_COLUMNS = [
   { id: 'notes', label: 'Notas' },
 ];
 
+const VIB_COLUMNS = [
+  { id: 'equipmentName', label: 'Equipamento' },
+  { id: 'area', label: 'Área' },
+  { id: 'overallVelocity', label: 'Velocidade (mm/s)' },
+  { id: 'acceleration', label: 'Aceleração (g)' },
+  { id: 'peakFrequency', label: 'Freq. Pico (Hz)' },
+  { id: 'riskLevel', label: 'Risco' },
+  { id: 'lastInspection', label: 'Inspeção' },
+  { id: 'notes', label: 'Notas' },
+];
+
 export const ReportsManager: React.FC<ReportsManagerProps> = ({ onCancel }) => {
   const [startDate, setStartDate] = useState(new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   
   const [includeGUT, setIncludeGUT] = useState(true);
   const [includeThermo, setIncludeThermo] = useState(true);
+  const [includeVib, setIncludeVib] = useState(true);
   
   const [selectedGUTCols, setSelectedGUTCols] = useState<string[]>(GUT_COLUMNS.map(c => c.id));
   const [selectedThermoCols, setSelectedThermoCols] = useState<string[]>(THERMO_COLUMNS.map(c => c.id));
+  const [selectedVibCols, setSelectedVibCols] = useState<string[]>(VIB_COLUMNS.map(c => c.id));
   
   const [generating, setGenerating] = useState(false);
 
-  const toggleColumn = (table: 'gut' | 'thermo', colId: string) => {
+  const toggleColumn = (table: 'gut' | 'thermo' | 'vib', colId: string) => {
     if (table === 'gut') {
       setSelectedGUTCols(prev => prev.includes(colId) ? prev.filter(c => c !== colId) : [...prev, colId]);
-    } else {
+    } else if (table === 'thermo') {
       setSelectedThermoCols(prev => prev.includes(colId) ? prev.filter(c => c !== colId) : [...prev, colId]);
+    } else {
+      setSelectedVibCols(prev => prev.includes(colId) ? prev.filter(c => c !== colId) : [...prev, colId]);
     }
   };
 
@@ -108,6 +123,28 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onCancel }) => {
 
         const thermoSheet = XLSX.utils.json_to_sheet(thermoData);
         XLSX.utils.book_append_sheet(workbook, thermoSheet, "Termografia");
+      }
+
+      if (includeVib) {
+        const records = await vibrationService.getAll();
+        const filteredRecords = records.filter(r => {
+          const d = new Date(r.createdAt);
+          return d >= start && d <= end;
+        });
+
+        const vibData = filteredRecords.map(r => {
+          const row: any = {};
+          selectedVibCols.forEach(colId => {
+            const colDef = VIB_COLUMNS.find(c => c.id === colId);
+            if (colDef) {
+              row[colDef.label] = (r as any)[colId];
+            }
+          });
+          return row;
+        });
+
+        const vibSheet = XLSX.utils.json_to_sheet(vibData);
+        XLSX.utils.book_append_sheet(workbook, vibSheet, "Vibração");
       }
 
       const fileName = `Relatorio_Biometano_${startDate}_a_${endDate}.xlsx`;
@@ -169,12 +206,16 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onCancel }) => {
                  <span className={`text-[10px] font-black uppercase ${includeThermo ? 'text-orange-400' : 'text-slate-600'}`}>Termografia</span>
                  {includeThermo ? <CheckSquare size={16} className="text-orange-400" /> : <Square size={16} className="text-slate-800" />}
               </button>
+              <button onClick={() => setIncludeVib(!includeVib)} className={`w-full flex items-center justify-between p-4 rounded-2xl border transition-all ${includeVib ? 'bg-cyan-600/10 border-cyan-500/30' : 'bg-slate-950 border-slate-800'}`}>
+                 <span className={`text-[10px] font-black uppercase ${includeVib ? 'text-cyan-400' : 'text-slate-600'}`}>Vibração</span>
+                 {includeVib ? <CheckSquare size={16} className="text-cyan-400" /> : <Square size={16} className="text-slate-800" />}
+              </button>
             </div>
           </section>
 
           <button 
             onClick={handleGenerateReport}
-            disabled={generating || (!includeGUT && !includeThermo)}
+            disabled={generating || (!includeGUT && !includeThermo && !includeVib)}
             className="w-full bg-emerald-600 hover:bg-emerald-500 text-white p-5 rounded-[1.5rem] font-black uppercase text-[10px] tracking-widest shadow-xl shadow-emerald-900/20 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
           >
             {generating ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
@@ -215,6 +256,25 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onCancel }) => {
                  {THERMO_COLUMNS.map(col => (
                    <button key={col.id} onClick={() => toggleColumn('thermo', col.id)} className={`flex items-center gap-3 p-3 rounded-xl border text-[9px] font-black uppercase transition-all ${selectedThermoCols.includes(col.id) ? 'bg-orange-600 text-white border-orange-500' : 'bg-slate-950 text-slate-600 border-slate-800 hover:border-slate-700'}`}>
                       {selectedThermoCols.includes(col.id) ? <CheckSquare size={14} /> : <Square size={14} />}
+                      {col.label}
+                   </button>
+                 ))}
+              </div>
+            </div>
+          )}
+
+          {includeVib && (
+            <div className="bg-slate-900 border border-slate-800 rounded-[2rem] p-8 shadow-xl animate-fade-in">
+              <div className="flex justify-between items-center mb-6">
+                 <h3 className="text-xs font-black text-cyan-400 uppercase tracking-widest flex items-center gap-2">Colunas Vibração</h3>
+                 <button onClick={() => setSelectedVibCols(selectedVibCols.length === VIB_COLUMNS.length ? [] : VIB_COLUMNS.map(c => c.id))} className="text-[8px] font-black text-slate-500 uppercase hover:text-white transition-colors">
+                   {selectedVibCols.length === VIB_COLUMNS.length ? 'Desmarcar Todas' : 'Marcar Todas'}
+                 </button>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                 {VIB_COLUMNS.map(col => (
+                   <button key={col.id} onClick={() => toggleColumn('vib', col.id)} className={`flex items-center gap-3 p-3 rounded-xl border text-[9px] font-black uppercase transition-all ${selectedVibCols.includes(col.id) ? 'bg-cyan-600 text-white border-cyan-500' : 'bg-slate-950 text-slate-600 border-slate-800 hover:border-slate-700'}`}>
+                      {selectedVibCols.includes(col.id) ? <CheckSquare size={14} /> : <Square size={14} />}
                       {col.label}
                    </button>
                  ))}

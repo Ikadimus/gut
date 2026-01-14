@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, X, Gauge, Cpu, Eye, Info, Shield, Briefcase, Settings2 as ConfigIcon, Layers, Thermometer, Database, Settings2, FileSpreadsheet } from 'lucide-react';
+import { Plus, Trash2, X, Gauge, Cpu, Eye, Info, Shield, Briefcase, Settings2 as ConfigIcon, Layers, Thermometer, Database, Settings2, FileSpreadsheet, Waves } from 'lucide-react';
 import { areaService, settingsService, equipmentService, storageService, sectorService, permissionService } from '../services/supabase';
 import { SystemSettings, User, UserRole, Equipment, RolePermissions } from '../types';
 
@@ -250,7 +250,7 @@ export const AreaManager: React.FC<AreaManagerProps> = ({ areas, onUpdateAreas, 
                       </div>
                    </div>
 
-                   <div className="overflow-x-auto bg-slate-950 border border-slate-800 rounded-2xl min-w-[700px]">
+                   <div className="overflow-x-auto bg-slate-950 border border-slate-800 rounded-2xl min-w-[800px]">
                       <table className="w-full text-left border-collapse">
                          <thead>
                             <tr className="bg-slate-900/50 border-b border-slate-800 text-[8px] font-black text-slate-500 uppercase tracking-widest">
@@ -259,6 +259,7 @@ export const AreaManager: React.FC<AreaManagerProps> = ({ areas, onUpdateAreas, 
                                <th className="px-2 py-4 text-center">Setor</th>
                                <th className="px-2 py-4 text-center">GUT</th>
                                <th className="px-2 py-4 text-center">Termo</th>
+                               <th className="px-2 py-4 text-center">Vibra</th>
                                <th className="px-2 py-4 text-center">Ativos</th>
                                <th className="px-2 py-4 text-center">Relat.</th>
                                <th className="px-2 py-4 text-center">User</th>
@@ -276,7 +277,7 @@ export const AreaManager: React.FC<AreaManagerProps> = ({ areas, onUpdateAreas, 
                                      </div>
                                   </td>
                                   {[
-                                    'can_view_dashboard', 'can_view_sector', 'can_view_gut', 'can_view_thermo', 
+                                    'can_view_dashboard', 'can_view_sector', 'can_view_gut', 'can_view_thermo', 'can_view_vibration',
                                     'can_view_assets', 'can_view_reports', 'can_view_users', 'can_view_settings'
                                   ].map((key) => (
                                     <td key={key} className="px-2 py-5 text-center">

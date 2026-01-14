@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { GUTIssue, Status } from '../types';
-import { CheckCircle2, ListFilter, Eye, Edit2, Info, Plus, AlertCircle, Zap } from 'lucide-react';
+import { CheckCircle2, ListFilter, Eye, Edit2, Info, Plus, AlertCircle, Zap, Cpu } from 'lucide-react';
 
 interface GUTTableProps {
   issues: GUTIssue[];
@@ -31,7 +31,6 @@ export const GUTTable: React.FC<GUTTableProps> = ({ issues, onStatusChange, onEd
 
   return (
     <div className="space-y-8 animate-fade-in">
-      {/* CABEÇALHO FUTURISTA NO PADRÃO DA IMAGEM */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div className="flex items-center gap-5">
            <div className="p-4 bg-orange-500/10 rounded-3xl border border-orange-500/20 text-orange-500 shadow-[0_0_20px_rgba(249,115,22,0.15)] animate-pulse">
@@ -56,9 +55,7 @@ export const GUTTable: React.FC<GUTTableProps> = ({ issues, onStatusChange, onEd
         )}
       </div>
 
-      {/* TABELA "GLASS" */}
       <div className="bg-slate-900/40 backdrop-blur-3xl rounded-[2.5rem] border border-white/5 overflow-hidden shadow-2xl relative">
-        {/* GRID DECORATIVO INTERNO */}
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808008_1px,transparent_1px),linear-gradient(to_bottom,#80808008_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none"></div>
 
         <div className="overflow-x-auto relative z-10">
@@ -66,7 +63,7 @@ export const GUTTable: React.FC<GUTTableProps> = ({ issues, onStatusChange, onEd
             <thead>
               <tr className="bg-slate-950/60 text-slate-500 uppercase text-[9px] font-black tracking-[0.3em] border-b border-white/5">
                 <th className="px-8 py-6">Score</th>
-                <th className="px-8 py-6">Evento Crítico</th>
+                <th className="px-8 py-6">Evento Crítico / Ativo</th>
                 <th className="px-8 py-6 text-center">G</th>
                 <th className="px-8 py-6 text-center">U</th>
                 <th className="px-8 py-6 text-center">T</th>
@@ -98,10 +95,15 @@ export const GUTTable: React.FC<GUTTableProps> = ({ issues, onStatusChange, onEd
                         <h4 className="font-black text-slate-100 uppercase text-xs tracking-tight group-hover:text-white transition-colors">
                           {issue.title}
                         </h4>
-                        <div className="flex items-center gap-3 mt-2">
+                        <div className="flex items-center gap-2 mt-2">
                            <span className="text-[9px] text-slate-500 font-bold uppercase tracking-widest flex items-center gap-1">
                              <AlertCircle size={10} className="text-orange-500" /> {issue.area}
                            </span>
+                           {issue.equipmentName && (
+                              <span className="text-[9px] text-blue-400 font-black uppercase tracking-widest flex items-center gap-1 bg-blue-900/10 px-2 py-0.5 rounded border border-blue-900/30">
+                                <Cpu size={10}/> {issue.equipmentName}
+                              </span>
+                           )}
                            {issue.aiSuggestion && (
                               <span className="px-2 py-0.5 bg-purple-500/10 text-purple-400 text-[8px] font-black uppercase rounded border border-purple-500/20 flex items-center gap-1">
                                 <CheckCircle2 size={8} /> IA Core Sync
@@ -149,7 +151,6 @@ export const GUTTable: React.FC<GUTTableProps> = ({ issues, onStatusChange, onEd
           </table>
         </div>
         
-        {/* FOOTER DA TABELA */}
         <div className="bg-slate-950/60 px-8 py-4 border-t border-white/5 flex justify-between items-center relative z-10">
            <div className="flex gap-4">
               <div className="flex items-center gap-2">

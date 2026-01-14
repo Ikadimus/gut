@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { GUTIssue, Status } from '../types';
+import { GUTIssue, Status, Equipment } from '../types';
 import { analyzeIssueWithAI } from '../services/geminiService';
-import { storageService } from '../services/supabase';
+import { storageService, equipmentService } from '../services/supabase';
 import { GUT_SCALES } from '../constants';
-import { Bot, Save, Loader2, Sparkles, Trash2, X, Paperclip, FileText, Zap, Info } from 'lucide-react';
+import { Bot, Save, Loader2, Sparkles, Trash2, X, Paperclip, FileText, Zap, Info, Cpu } from 'lucide-react';
 
 interface IssueFormProps {
   onSave: (issue: Omit<GUTIssue, 'id' | 'createdAt'>, id?: string) => void;
@@ -29,10 +29,12 @@ export const IssueForm: React.FC<IssueFormProps> = ({
   const [description, setDescription] = useState(initialData?.description || '');
   const [immediateAction, setImmediateAction] = useState(initialData?.immediateAction || '');
   const [area, setArea] = useState<string>(initialData?.area || areas[0] || '');
+  const [equipmentName, setEquipmentName] = useState(initialData?.equipmentName || '');
   const [gravity, setGravity] = useState<number>(initialData?.gravity || 1);
   const [urgency, setUrgency] = useState<number>(initialData?.urgency || 1);
   const [tendency, setTendency] = useState<number>(initialData?.tendency || 1);
   
+  const [availableEquipments, setAvailableEquipments] = useState<Equipment[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiReasoning, setAiReasoning] = useState<string | null>(initialData?.aiSuggestion || null);
@@ -49,6 +51,7 @@ export const IssueForm: React.FC<IssueFormProps> = ({
       setDescription(initialData.description);
       setImmediateAction(initialData.immediateAction || '');
       setArea(initialData.area);
+      setEquipmentName(initialData.equipmentName || '');
       setGravity(initialData.gravity);
       setUrgency(initialData.urgency);
       setTendency(initialData.tendency);
@@ -58,6 +61,12 @@ export const IssueForm: React.FC<IssueFormProps> = ({
       setAttachmentName(initialData.attachmentName);
     }
   }, [initialData]);
+
+  useEffect(() => {
+    if (area) {
+      equipmentService.getAllByArea(area).then(setAvailableEquipments);
+    }
+  }, [area]);
 
   const getLabelForValue = (type: 'gravity' | 'urgency' | 'tendency', val: number) => {
     const scale = GUT_SCALES[type].find(s => s.value === val);
@@ -87,7 +96,6 @@ export const IssueForm: React.FC<IssueFormProps> = ({
       try {
         setUploading(true);
         await storageService.deleteFile(attachmentUrl);
-        // CRÍTICO: Usar string vazia ou null para forçar a limpeza no banco de dados
         setAttachmentUrl('');
         setAttachmentName('');
         if (fileInputRef.current) fileInputRef.current.value = '';
@@ -133,6 +141,7 @@ export const IssueForm: React.FC<IssueFormProps> = ({
       description,
       immediateAction,
       area,
+      equipmentName,
       gravity,
       urgency,
       tendency,
@@ -174,23 +183,32 @@ export const IssueForm: React.FC<IssueFormProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-5 items-start">
           
           <div className="lg:col-span-3 space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 items-end">
               <div>
-                <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Subsistema de Origem</label>
-                <select value={area} onChange={(e) => setArea(e.target.value)} className="w-full rounded-lg bg-slate-950 border-slate-700 text-slate-100 p-2.5 border outline-none font-bold text-xs focus:border-green-500/50 transition-all">
+                <label className="flex h-4 items-end text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Subsistema de Origem</label>
+                <select value={area} onChange={(e) => {setArea(e.target.value); setEquipmentName('');}} className="w-full rounded-lg bg-slate-950 border-slate-700 text-slate-100 p-2.5 border outline-none font-bold text-xs focus:border-green-500/50 transition-all h-10">
                   {areas.map(a => <option key={a} value={a}>{a}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Evento Crítico</label>
-                <input type="text" required value={title} onChange={(e) => setTitle(e.target.value)} className="w-full rounded-lg bg-slate-950 border-slate-700 text-slate-100 p-2.5 border outline-none font-bold text-xs focus:border-green-500/50 transition-all" placeholder="Título resumido da falha" />
+                <label className="flex h-4 items-end gap-1 text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">
+                  <Cpu size={10} className="mb-0.5" /> Ativo Relacionado
+                </label>
+                <select value={equipmentName} onChange={(e) => setEquipmentName(e.target.value)} className="w-full rounded-lg bg-slate-950 border-slate-700 text-slate-100 p-2.5 border outline-none font-bold text-xs focus:border-green-500/50 transition-all h-10">
+                   <option value="">Nenhum ativo selecionado</option>
+                   {availableEquipments.map(eq => <option key={eq.id} value={eq.name}>{eq.tag} - {eq.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="flex h-4 items-end text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Evento Crítico</label>
+                <input type="text" required value={title} onChange={(e) => setTitle(e.target.value)} className="w-full rounded-lg bg-slate-950 border-slate-700 text-slate-100 p-2.5 border outline-none font-bold text-xs focus:border-green-500/50 transition-all h-10" placeholder="Título resumido da falha" />
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
               <div className="space-y-3">
                 <div>
-                  <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Relato Técnico Detalhado</label>
+                  <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Relato Técnico Detalhado</label>
                   <textarea required rows={3} value={description} onChange={(e) => setDescription(e.target.value)} className="w-full rounded-lg bg-slate-950 border-slate-700 text-slate-100 p-2.5 border outline-none text-[11px] leading-relaxed" placeholder="Descreva os sintomas, pressões e parâmetros observados..." />
                 </div>
                 
@@ -207,7 +225,7 @@ export const IssueForm: React.FC<IssueFormProps> = ({
 
               <div className="space-y-3">
                 <div>
-                  <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-2">
+                  <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1 flex items-center gap-2">
                     <Zap size={11} className="text-amber-400" /> Ação Imediata Recomendada (Operador)
                   </label>
                   <textarea rows={3} value={immediateAction} onChange={(e) => setImmediateAction(e.target.value)} className="w-full rounded-lg bg-slate-950 border-slate-700 text-slate-100 p-2.5 border outline-none text-[11px] leading-relaxed" placeholder="Qual a primeira providência para conter o risco?" />
@@ -227,7 +245,7 @@ export const IssueForm: React.FC<IssueFormProps> = ({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                <div className="bg-slate-950/40 p-3 rounded-xl border border-slate-700/50">
-                  <label className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2">
+                  <label className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-1 flex items-center gap-2">
                     <Paperclip size={11} /> Documentação Operacional / Evidência
                   </label>
                   {attachmentUrl ? (
@@ -239,7 +257,7 @@ export const IssueForm: React.FC<IssueFormProps> = ({
                        <button type="button" onClick={removeAttachment} className="p-1 text-red-400 hover:bg-red-900/30 rounded transition-colors"><Trash2 size={12} /></button>
                     </div>
                   ) : (
-                    <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading} className="w-full py-2 border border-dashed border-slate-700 rounded-lg flex items-center justify-center gap-2 text-slate-500 hover:text-slate-300 hover:border-slate-500 transition-all text-[8px] font-black uppercase tracking-widest">
+                    <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading} className="w-full py-2 border border-dashed border-slate-700 rounded-lg flex items-center justify-center gap-2 text-slate-500 hover:text-slate-300 hover:border-slate-500 transition-all text-[8px] font-black uppercase tracking-widest h-10">
                        {uploading ? <Loader2 size={12} className="animate-spin text-blue-500" /> : <Paperclip size={12} />}
                        {uploading ? 'Salvando...' : 'Anexar Documento'}
                        <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
@@ -283,7 +301,6 @@ export const IssueForm: React.FC<IssueFormProps> = ({
                     <div className="flex justify-between items-center px-1">
                       <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest flex items-center gap-1">
                         {item.label}
-                        {/* Fix: Wrapped Info icon in a span to use the title attribute for tooltips as Lucide icons don't support it directly in some environments */}
                         <span title={explanations[item.id as keyof typeof explanations]}>
                           <Info size={9} className="text-slate-600 group-hover:text-green-500 transition-colors cursor-help" />
                         </span>

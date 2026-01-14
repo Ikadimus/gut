@@ -30,6 +30,7 @@ export interface RolePermissions {
   can_view_sector: boolean;
   can_view_gut: boolean;
   can_view_thermo: boolean;
+  can_view_vibration: boolean;
   can_view_assets: boolean;
   can_view_users: boolean;
   can_view_settings: boolean;
@@ -97,6 +98,12 @@ export interface AIThermographyResult {
   riskLevel: 'Baixo' | 'Moderado' | 'Alto' | 'Crítico';
 }
 
+export interface AIVibrationResult {
+  analysis: string;
+  recommendation: string;
+  riskLevel: 'Normal' | 'Alerta' | 'Perigoso' | 'Crítico';
+}
+
 export interface ThermographyRecord {
   id: string;
   equipmentName: string;
@@ -104,6 +111,23 @@ export interface ThermographyRecord {
   currentTemp: number;
   maxTemp: number;
   minTemp: number;
+  lastInspection: string;
+  createdAt: string;
+  notes?: string;
+  attachmentUrl?: string;
+  attachmentName?: string;
+  aiAnalysis?: string;
+  aiRecommendation?: string;
+  riskLevel?: string;
+}
+
+export interface VibrationRecord {
+  id: string;
+  equipmentName: string;
+  area: string;
+  overallVelocity: number; // mm/s RMS
+  acceleration: number; // g
+  peakFrequency?: number; // Hz
   lastInspection: string;
   createdAt: string;
   notes?: string;

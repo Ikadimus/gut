@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
-import { AIScoringResult, AIThermographyResult } from "../types";
+import { AIScoringResult, AIThermographyResult, AIVibrationResult } from "../types";
 
 export const analyzeIssueWithAI = async (
   title: string,
@@ -84,7 +84,6 @@ export const evaluateResolutionWithAI = async (
       model: "gemini-3-flash-preview",
       contents: prompt,
       config: {
-        // Temperature kept at 0.5 for consistent evaluation results
         temperature: 0.5,
       },
     });
@@ -157,6 +156,60 @@ export const analyzeThermographyWithAI = async (
   }
 };
 
+export const analyzeVibrationWithAI = async (
+  equipmentName: string,
+  area: string,
+  velocity: number,
+  acceleration: number,
+  peakFreq: number,
+  notes: string
+): Promise<AIVibrationResult | null> => {
+  try {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+    const prompt = `
+      Você é um Especialista em Análise de Vibração e Manutenção Preditiva Industrial.
+      Avalie o seguinte ativo da usina de biometano:
+
+      DADOS DE VIBRAÇÃO:
+      - Ativo: ${equipmentName} (${area})
+      - Velocidade Global (RMS): ${velocity} mm/s
+      - Aceleração Global: ${acceleration} g
+      - Frequência de Pico Observada: ${peakFreq || 'Não informada'} Hz
+      - NOTAS DE CAMPO: ${notes}
+
+      REQUISITOS DE RESPOSTA (JSON):
+      - analysis: Diagnóstico técnico com base na severidade de vibração (use ISO 10816 como referência). Indique se há sinais de desbalanceamento, desalinhamento, folga ou falha em rolamento.
+      - recommendation: Ação imediata (ex: balanceamento, reaperto, substituição).
+      - riskLevel: 'Normal', 'Alerta', 'Perigoso' ou 'Crítico'.
+
+      Seja extremamente preciso e técnico.
+    `;
+
+    const response: GenerateContentResponse = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            analysis: { type: Type.STRING },
+            recommendation: { type: Type.STRING },
+            riskLevel: { type: Type.STRING },
+          },
+          required: ["analysis", "recommendation", "riskLevel"],
+        },
+      },
+    });
+
+    return JSON.parse(response.text.trim()) as AIVibrationResult;
+  } catch (error: any) {
+    console.error("Erro na IA de Vibração:", error);
+    throw new Error("Falha na análise vibracional da IA.");
+  }
+};
+
 export const explainSystemToUser = async (question: string, userName: string): Promise<string> => {
   try {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -178,7 +231,7 @@ export const explainSystemToUser = async (question: string, userName: string): P
       REGRAS DE RESPOSTA:
       1. Sempre comece a primeira resposta saudando o usuário: "Olá ${userName}!".
       2. Deixe claro que você é a BIOHUB, o guia do sistema.
-      3. Explique livremente: Metodologia GUT, Lógica de Termografia, Gestão de Ativos e Uso da Interface.
+      3. Explique livremente: Metodologia GUT, Lógica de Termografia, Análise de Vibração, Gestão de Ativos e Uso da Interface.
       4. Desenvolvedor: Cite 6580005 como o arquiteto desta infraestrutura digital.
 
       ESTILO:
@@ -190,7 +243,6 @@ export const explainSystemToUser = async (question: string, userName: string): P
       model: "gemini-3-flash-preview",
       contents: `USUÁRIO: ${userName}\nCONTEXTO:\n${context}\n\nPERGUNTA: ${question}`,
       config: {
-        // Temperature kept at 0.7 for varied conversational responses
         temperature: 0.7,
       },
     });

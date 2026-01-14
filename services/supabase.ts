@@ -1,6 +1,6 @@
 
 import { createClient } from '@supabase/supabase-js';
-import { GUTIssue, Status, ThermographyRecord, SystemSettings, User, UserRole, Equipment, RolePermissions } from '../types';
+import { GUTIssue, Status, ThermographyRecord, VibrationRecord, SystemSettings, User, UserRole, Equipment, RolePermissions } from '../types';
 
 const supabaseUrl = 'https://ffzwavnqpeuqqidotsyp.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmendhdm5xcGV1cXFpZG90c3lwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE2NDA4NjMsImV4cCI6MjA3NzIxNjg2M30.r5-ONF9TldNq0mstFh47jwdklEyx6v8dWErRPRQ5__Y';
@@ -78,10 +78,11 @@ export const permissionService = {
       can_view_sector: d.can_view_sector,
       can_view_gut: d.can_view_gut,
       can_view_thermo: d.can_view_thermo,
+      can_view_vibration: d.can_view_vibration !== false, 
       can_view_assets: d.can_view_assets,
       can_view_users: d.can_view_users,
       can_view_settings: d.can_view_settings,
-      can_view_reports: d.can_view_reports || false
+      can_view_reports: d.can_view_reports !== false
     }));
   },
   async create(role: string): Promise<void> {
@@ -91,6 +92,7 @@ export const permissionService = {
       can_view_sector: true,
       can_view_gut: true,
       can_view_thermo: true,
+      can_view_vibration: true,
       can_view_assets: true,
       can_view_users: false,
       can_view_settings: false,
@@ -104,6 +106,7 @@ export const permissionService = {
     if (permissions.can_view_sector !== undefined) dbPayload.can_view_sector = permissions.can_view_sector;
     if (permissions.can_view_gut !== undefined) dbPayload.can_view_gut = permissions.can_view_gut;
     if (permissions.can_view_thermo !== undefined) dbPayload.can_view_thermo = permissions.can_view_thermo;
+    if (permissions.can_view_vibration !== undefined) dbPayload.can_view_vibration = permissions.can_view_vibration;
     if (permissions.can_view_assets !== undefined) dbPayload.can_view_assets = permissions.can_view_assets;
     if (permissions.can_view_users !== undefined) dbPayload.can_view_users = permissions.can_view_users;
     if (permissions.can_view_settings !== undefined) dbPayload.can_view_settings = permissions.can_view_settings;
@@ -128,7 +131,7 @@ export const userService = {
   async getAll(): Promise<User[]> {
     const { data, error } = await supabase.from('users').select('*').order('name');
     if (error) throw new Error(getErrorMessage(error));
-    return (data || []).map(d => ({ id: String(d.id), name: d.name, email: d.email, role: d.role, sector: d.sector, createdAt: data.created_at }));
+    return (data || []).map(d => ({ id: String(d.id), name: d.name, email: d.email, role: d.role, sector: d.sector, createdAt: d.created_at }));
   },
   async create(user: Omit<User, 'id' | 'createdAt'>): Promise<User> {
     const { data, error } = await supabase.from('users').insert([{
@@ -310,7 +313,6 @@ export const issueService = {
       status: (dbIssue.status as Status) || Status.OPEN,
       createdAt: dbIssue.created_at || new Date().toISOString(),
       aiSuggestion: dbIssue.ai_suggestion,
-      // Fix: Mapped correctly to camelCase interface property
       aiActionSuggestion: dbIssue.ai_action_suggestion,
       attachmentUrl: dbIssue.attachment_url,
       attachmentName: dbIssue.attachment_name,
@@ -373,6 +375,7 @@ export const thermographyService = {
     setIfValid('attachment_name', record.attachmentName);
     setIfValid('ai_analysis', record.aiAnalysis);
     setIfValid('ai_recommendation', record.aiRecommendation);
+    // Fixed: record.riskLevel should be used instead of risk_level
     setIfValid('risk_level', record.riskLevel);
     const { data, error } = await supabase.from('thermography').update(dbObj).eq('id', id).select().single();
     if (error) throw new Error(getErrorMessage(error));
@@ -401,12 +404,93 @@ export const thermographyService = {
   }
 };
 
+export const vibrationService = {
+  async getAll(): Promise<VibrationRecord[]> {
+    const { data, error } = await supabase.from('vibration').select('*').order('created_at', { ascending: false });
+    if (error) throw new Error(getErrorMessage(error));
+    return (data || []).map(d => this.mapFromDB(d));
+  },
+  async getByEquipment(name: string): Promise<VibrationRecord[]> {
+    const { data, error } = await supabase.from('vibration').select('*').eq('equipment_name', name).order('created_at', { ascending: false });
+    if (error) return [];
+    return (data || []).map(d => this.mapFromDB(d));
+  },
+  async create(record: Omit<VibrationRecord, 'id' | 'createdAt'>): Promise<VibrationRecord> {
+    const dbPayload: any = { 
+      equipment_name: record.equipmentName, 
+      area: record.area, 
+      overall_velocity: record.overallVelocity, 
+      acceleration: record.acceleration, 
+      peak_frequency: record.peakFrequency,
+      last_inspection: record.lastInspection
+    };
+    const setIfValid = (dbKey: string, val: any) => {
+      if (val !== undefined && val !== '' && val !== null) {
+        dbPayload[dbKey] = val;
+      }
+    };
+    setIfValid('notes', record.notes);
+    setIfValid('attachment_url', record.attachmentUrl);
+    setIfValid('attachment_name', record.attachmentName);
+    setIfValid('ai_analysis', record.aiAnalysis);
+    setIfValid('ai_recommendation', record.aiRecommendation);
+    setIfValid('risk_level', record.riskLevel);
+    const { data, error } = await supabase.from('vibration').insert([dbPayload]).select().single();
+    if (error) throw new Error(getErrorMessage(error));
+    return this.mapFromDB(data);
+  },
+  async update(id: string, record: Partial<VibrationRecord>): Promise<VibrationRecord> {
+    const dbObj: any = {};
+    const setIfValid = (dbKey: string, val: any) => {
+      if (val !== undefined && val !== '' && val !== null) {
+        dbObj[dbKey] = val;
+      }
+    };
+    if (record.equipmentName !== undefined) dbObj.equipment_name = record.equipmentName;
+    if (record.area !== undefined) dbObj.area = record.area;
+    if (record.overallVelocity !== undefined) dbObj.overall_velocity = record.overallVelocity;
+    if (record.acceleration !== undefined) dbObj.acceleration = record.acceleration;
+    if (record.peakFrequency !== undefined) dbObj.peak_frequency = record.peakFrequency;
+    setIfValid('last_inspection', record.lastInspection);
+    setIfValid('notes', record.notes);
+    setIfValid('attachment_url', record.attachmentUrl);
+    setIfValid('attachment_name', record.attachmentName);
+    setIfValid('ai_analysis', record.aiAnalysis);
+    setIfValid('ai_recommendation', record.aiRecommendation);
+    setIfValid('risk_level', record.riskLevel);
+    const { data, error } = await supabase.from('vibration').update(dbObj).eq('id', id).select().single();
+    if (error) throw new Error(getErrorMessage(error));
+    return this.mapFromDB(data);
+  },
+  async delete(id: string): Promise<void> {
+    await supabase.from('vibration').delete().eq('id', id);
+  },
+  mapFromDB(d: any): VibrationRecord {
+    return {
+      id: String(d.id), 
+      equipmentName: d.equipment_name, 
+      area: d.area, 
+      overallVelocity: d.overall_velocity, 
+      acceleration: d.acceleration, 
+      peakFrequency: d.peak_frequency,
+      lastInspection: d.last_inspection, 
+      createdAt: d.created_at, 
+      notes: d.notes, 
+      attachmentUrl: d.attachment_url, 
+      attachmentName: d.attachment_name, 
+      aiAnalysis: d.ai_analysis, 
+      aiRecommendation: d.ai_recommendation, 
+      riskLevel: d.risk_level
+    };
+  }
+};
+
 export const settingsService = {
   async get(): Promise<SystemSettings> {
     const defaults: SystemSettings = { criticalThreshold: 250, warningThreshold: 100, individualCriticalThreshold: 80, individualWarningThreshold: 40, accentColor: '#10b981', colorNormal: '#10b981', colorWarning: '#f59e0b', colorCritical: '#ef4444' };
     const { data } = await supabase.from('settings').select('*').limit(1).maybeSingle();
     if (!data) return defaults;
-    // Fix: Using correct camelCase property names defined in SystemSettings interface
+    // Fixed: return object properties must match camelCase SystemSettings interface
     return { 
       id: data.id, 
       criticalThreshold: data.critical_threshold, 

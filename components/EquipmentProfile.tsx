@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Equipment, ThermographyRecord, GUTIssue, UserRole } from '../types';
-import { equipmentService, thermographyService, issueService, storageService } from '../services/supabase';
-import { Cpu, ShieldCheck, History, Droplets, Wrench, Calendar, Thermometer, AlertTriangle, Activity, X, Info, ExternalLink, Camera, Loader2, Save, ArrowLeft, Tag } from 'lucide-react';
+import { Equipment, ThermographyRecord, VibrationRecord, GUTIssue, UserRole } from '../types';
+import { equipmentService, thermographyService, vibrationService, issueService, storageService } from '../services/supabase';
+import { Cpu, ShieldCheck, History, Droplets, Wrench, Calendar, Thermometer, AlertTriangle, Activity, X, Info, ExternalLink, Camera, Loader2, Save, ArrowLeft, Tag, Waves } from 'lucide-react';
 
 interface EquipmentProfileProps {
   equipmentName: string;
@@ -13,6 +13,7 @@ interface EquipmentProfileProps {
 export const EquipmentProfile: React.FC<EquipmentProfileProps> = ({ equipmentName, onClose, userRole }) => {
   const [equipment, setEquipment] = useState<Equipment | null>(null);
   const [thermoHistory, setThermoHistory] = useState<ThermographyRecord[]>([]);
+  const [vibrationHistory, setVibrationHistory] = useState<VibrationRecord[]>([]);
   const [gutHistory, setGutHistory] = useState<GUTIssue[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -41,13 +42,15 @@ export const EquipmentProfile: React.FC<EquipmentProfileProps> = ({ equipmentNam
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [eq, thermo, gut] = await Promise.all([
+      const [eq, thermo, vib, gut] = await Promise.all([
         equipmentService.getByName(equipmentName),
         thermographyService.getByEquipment(equipmentName),
+        vibrationService.getByEquipment(equipmentName),
         issueService.getByEquipment(equipmentName)
       ]);
       setEquipment(eq);
       setThermoHistory(thermo);
+      setVibrationHistory(vib);
       setGutHistory(gut);
       
       if (eq) {
@@ -252,6 +255,7 @@ export const EquipmentProfile: React.FC<EquipmentProfileProps> = ({ equipmentNam
           </div>
 
           <div className="lg:col-span-8 space-y-10">
+             {/* HISTÓRICO DE TERMOGRAFIA */}
              <div className="bg-slate-900/40 border border-slate-800 rounded-[2.5rem] p-10 shadow-2xl">
                 <div className="flex items-center justify-between mb-8">
                    <div className="flex items-center gap-4">
@@ -299,6 +303,52 @@ export const EquipmentProfile: React.FC<EquipmentProfileProps> = ({ equipmentNam
                 </div>
              </div>
 
+             {/* HISTÓRICO DE VIBRAÇÃO */}
+             <div className="bg-slate-900/40 border border-slate-800 rounded-[2.5rem] p-10 shadow-2xl">
+                <div className="flex items-center justify-between mb-8">
+                   <div className="flex items-center gap-4">
+                      <div className="p-3 bg-cyan-600/10 text-cyan-500 rounded-xl border border-cyan-500/20">
+                         <Waves size={20} />
+                      </div>
+                      <div>
+                         <h3 className="text-xl font-black text-white uppercase tracking-tight">Histórico de Vibração</h3>
+                         <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Sinais Dinâmicos e Severidade Mecânica</p>
+                      </div>
+                   </div>
+                   <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest bg-slate-950 px-3 py-1 rounded-lg border border-slate-800">{vibrationHistory.length} Registros</span>
+                </div>
+
+                <div className="space-y-4">
+                   {vibrationHistory.length === 0 ? (
+                     <p className="text-slate-700 text-center py-16 uppercase text-[10px] font-black tracking-widest italic border-2 border-dashed border-slate-800 rounded-[2rem]">Sem histórico vibracional disponível.</p>
+                   ) : (
+                     vibrationHistory.map(record => (
+                       <div key={record.id} className="bg-slate-950/60 border border-slate-800 p-6 rounded-3xl flex items-center justify-between group hover:border-cyan-500/30 transition-all">
+                          <div className="flex items-center gap-6">
+                             <div className={`p-4 rounded-2xl bg-slate-900 text-cyan-500`}>
+                                <Waves size={20} />
+                             </div>
+                             <div>
+                                <p className="text-xs font-black text-white uppercase">{new Date(record.lastInspection).toLocaleDateString('pt-BR', { dateStyle: 'long' })}</p>
+                                <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-1">{record.riskLevel || 'Análise Normal'}</p>
+                             </div>
+                          </div>
+                          <div className="text-right flex items-center gap-10">
+                             <div>
+                                <p className="text-[9px] font-black text-slate-600 uppercase">Velocidade RMS</p>
+                                <p className="text-xl font-black italic text-slate-100">{record.overallVelocity} <span className="text-[10px] uppercase ml-1 opacity-50 font-sans">mm/s</span></p>
+                             </div>
+                             <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button className="p-2 text-slate-500 hover:text-white transition-colors"><ExternalLink size={18}/></button>
+                             </div>
+                          </div>
+                       </div>
+                     ))
+                   )}
+                </div>
+             </div>
+
+             {/* HISTÓRICO DE OCORRÊNCIAS GUT */}
              <div className="bg-slate-900/40 border border-slate-800 rounded-[2.5rem] p-10 shadow-2xl">
                 <div className="flex items-center justify-between mb-8">
                    <div className="flex items-center gap-4">

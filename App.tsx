@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { LayoutDashboard, Settings, Thermometer, ListFilter, Users, LogOut, Terminal, HardDrive, ChevronLeft, ChevronRight, Send, Sparkles, Bot, Briefcase, Wrench, Zap, Radio, ClipboardCheck, FlaskConical, Droplets, Activity, AlertCircle, X, ChevronDown, ChevronUp, FileSpreadsheet } from 'lucide-react';
+import { LayoutDashboard, Settings, Thermometer, ListFilter, Users, LogOut, Terminal, HardDrive, ChevronLeft, ChevronRight, Send, Sparkles, Bot, Briefcase, Wrench, Zap, Radio, ClipboardCheck, FlaskConical, Droplets, Activity, AlertCircle, X, ChevronDown, ChevronUp, FileSpreadsheet, Waves } from 'lucide-react';
 import { GUTIssue, Status, SystemSettings, ThermographyRecord, User, UserRole, RolePermissions } from './types';
 import { StatsCards } from './components/StatsCards';
 import { IssueForm } from './components/IssueForm';
@@ -9,6 +9,7 @@ import { Charts } from './components/Charts';
 import { AreaManager } from './components/AreaManager';
 import { DetailsModal } from './components/DetailsModal';
 import { ThermographyManager } from './components/ThermographyManager';
+import { VibrationManager } from './components/VibrationManager';
 import { Login } from './components/Login';
 import { AdminUsers } from './components/AdminUsers';
 import { EquipmentProfile } from './components/EquipmentProfile';
@@ -30,7 +31,7 @@ declare global {
   }
 }
 
-type MainView = 'dashboard' | 'gut' | 'thermography' | 'assets' | 'areas' | 'users' | 'equipment-profile' | 'reports' |
+type MainView = 'dashboard' | 'gut' | 'thermography' | 'vibration' | 'assets' | 'areas' | 'users' | 'equipment-profile' | 'reports' |
                  'sector-mecanica' | 'sector-eletrica' | 'sector-instrumentacao' | 'sector-operacao' | 'sector-quimica' | 'sector-lubrificacao' | 'sector-preditiva';
 
 interface ChatMessage {
@@ -279,6 +280,7 @@ function App() {
                     <div className={`${sidebarOpen ? 'block' : 'hidden'} animate-fade-in space-y-1`}>
                       <NavButton target="gut" icon={ListFilter} label="Matriz GUT" colorClass="bg-blue-600 text-white" visible={userPermissions?.can_view_gut} isSubItem={true} />
                       <NavButton target="thermography" icon={Thermometer} label="Termografia" colorClass="bg-orange-600 text-white" visible={userPermissions?.can_view_thermo} isSubItem={true} />
+                      <NavButton target="vibration" icon={Waves} label="Vibração" colorClass="bg-cyan-600 text-white" visible={userPermissions?.can_view_vibration} isSubItem={true} />
                     </div>
                   )}
                </div>
@@ -356,6 +358,7 @@ function App() {
                 </div>
               )}
               {view === 'thermography' && userPermissions?.can_view_thermo && <ThermographyManager areas={areas} userRole={currentUser.role as UserRole} onViewEquipmentProfile={onViewProfile} />}
+              {view === 'vibration' && userPermissions?.can_view_vibration && <VibrationManager areas={areas} userRole={currentUser.role as UserRole} onViewEquipmentProfile={onViewProfile} />}
               {view === 'assets' && userPermissions?.can_view_assets && <EquipmentBrowser areas={areas} onSelectEquipment={onViewProfile} userRole={currentUser.role as UserRole} />}
               {view === 'users' && userPermissions?.can_view_users && <AdminUsers currentUser={currentUser} />}
               {view === 'areas' && userPermissions?.can_view_settings && <AreaManager areas={areas} onUpdateAreas={() => fetchInitialData()} onCancel={() => setView('dashboard')} initialSettings={settings} onUpdateSettings={(s) => setSettings(s)} currentUser={currentUser} />}
