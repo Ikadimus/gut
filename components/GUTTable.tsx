@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { GUTIssue, Status } from '../types';
-import { CheckCircle2, ListFilter, Eye, Edit2, Info, Plus, AlertCircle, Zap, Cpu } from 'lucide-react';
+import { CheckCircle2, ListFilter, Eye, Edit2, Info, Plus, AlertCircle, Zap, Cpu, Briefcase } from 'lucide-react';
 
 interface GUTTableProps {
   issues: GUTIssue[];
@@ -63,7 +63,7 @@ export const GUTTable: React.FC<GUTTableProps> = ({ issues, onStatusChange, onEd
             <thead>
               <tr className="bg-slate-950/60 text-slate-500 uppercase text-[9px] font-black tracking-[0.3em] border-b border-white/5">
                 <th className="px-8 py-6">Score</th>
-                <th className="px-8 py-6">Evento Crítico / Ativo</th>
+                <th className="px-8 py-6">Evento Crítico / Ativo / Setor</th>
                 <th className="px-8 py-6 text-center">G</th>
                 <th className="px-8 py-6 text-center">U</th>
                 <th className="px-8 py-6 text-center">T</th>
@@ -95,10 +95,15 @@ export const GUTTable: React.FC<GUTTableProps> = ({ issues, onStatusChange, onEd
                         <h4 className="font-black text-slate-100 uppercase text-xs tracking-tight group-hover:text-white transition-colors">
                           {issue.title}
                         </h4>
-                        <div className="flex items-center gap-2 mt-2">
+                        <div className="flex flex-wrap items-center gap-2 mt-2">
                            <span className="text-[9px] text-slate-500 font-bold uppercase tracking-widest flex items-center gap-1">
                              <AlertCircle size={10} className="text-orange-500" /> {issue.area}
                            </span>
+                           {issue.sector && (
+                              <span className="text-[9px] text-emerald-400 font-black uppercase tracking-widest flex items-center gap-1 bg-emerald-900/10 px-2 py-0.5 rounded border border-emerald-900/30">
+                                <Briefcase size={10}/> {issue.sector}
+                              </span>
+                           )}
                            {issue.equipmentName && (
                               <span className="text-[9px] text-blue-400 font-black uppercase tracking-widest flex items-center gap-1 bg-blue-900/10 px-2 py-0.5 rounded border border-blue-900/30">
                                 <Cpu size={10}/> {issue.equipmentName}

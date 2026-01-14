@@ -69,6 +69,7 @@ export interface GUTIssue {
   description: string;
   immediateAction?: string;
   area: string;
+  sector?: string;
   equipmentName?: string;
   gravity: number;
   urgency: number;

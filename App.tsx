@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { LayoutDashboard, Settings, Thermometer, ListFilter, Users, LogOut, Terminal, HardDrive, ChevronLeft, ChevronRight, Send, Sparkles, Bot, Briefcase, Wrench, Zap, Radio, ClipboardCheck, FlaskConical, Droplets, Activity, AlertCircle, X, ChevronDown, ChevronUp, FileSpreadsheet, Waves } from 'lucide-react';
-import { GUTIssue, Status, SystemSettings, ThermographyRecord, User, UserRole, RolePermissions } from './types';
+import { GUTIssue, Status, SystemSettings, ThermographyRecord, VibrationRecord, User, UserRole, RolePermissions } from './types';
 import { StatsCards } from './components/StatsCards';
 import { IssueForm } from './components/IssueForm';
 import { GUTTable } from './components/GUTTable';
@@ -17,7 +17,8 @@ import { EquipmentBrowser } from './components/EquipmentBrowser';
 import { ResolutionModal } from './components/ResolutionModal';
 import { SectorPortal } from './components/SectorPortal';
 import { ReportsManager } from './components/ReportsManager';
-import { issueService, areaService, settingsService, thermographyService, userService, permissionService } from './services/supabase';
+import { NotificationBell } from './components/NotificationBell';
+import { issueService, areaService, settingsService, thermographyService, vibrationService, userService, permissionService } from './services/supabase';
 import { explainSystemToUser } from './services/geminiService';
 
 declare global {
@@ -32,7 +33,7 @@ declare global {
 }
 
 type MainView = 'dashboard' | 'gut' | 'thermography' | 'vibration' | 'assets' | 'areas' | 'users' | 'equipment-profile' | 'reports' |
-                 'sector-mecanica' | 'sector-eletrica' | 'sector-instrumentacao' | 'sector-operacao' | 'sector-quimica' | 'sector-lubrificacao' | 'sector-preditiva';
+                 'sector-mecanica-lub' | 'sector-eletrica-instr' | 'sector-operacao' | 'sector-quimica';
 
 interface ChatMessage {
   role: 'user' | 'ai';
@@ -43,6 +44,7 @@ function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [issues, setIssues] = useState<GUTIssue[]>([]);
   const [thermography, setThermography] = useState<ThermographyRecord[]>([]);
+  const [vibration, setVibration] = useState<VibrationRecord[]>([]);
   const [areas, setAreas] = useState<string[]>([]);
   const [userPermissions, setUserPermissions] = useState<RolePermissions | null>(null);
   const [settings, setSettings] = useState<SystemSettings>({ 
@@ -125,16 +127,18 @@ function App() {
     try {
       setLoading(true);
       setError(null);
-      const [fetchedIssues, fetchedAreas, fetchedSettings, fetchedThermo] = await Promise.all([
+      const [fetchedIssues, fetchedAreas, fetchedSettings, fetchedThermo, fetchedVib] = await Promise.all([
         issueService.getAll().catch(() => []),
         areaService.getAll().catch(() => []),
         settingsService.get().catch(() => settings),
-        thermographyService.getAll().catch(() => [])
+        thermographyService.getAll().catch(() => []),
+        vibrationService.getAll().catch(() => [])
       ]);
       setIssues(fetchedIssues);
       setAreas(fetchedAreas);
       setSettings(fetchedSettings);
       setThermography(fetchedThermo);
+      setVibration(fetchedVib);
     } catch (err: any) {
       setError(`Erro ao carregar dados: ${err.message}`);
     } finally {
@@ -253,6 +257,26 @@ function App() {
                <div className="w-8 h-8 rounded-lg bg-orange-600 flex items-center justify-center font-black text-white italic text-base shadow-lg shadow-orange-900/20">B</div>
              )}
           </div>
+
+          <div className={`mb-6 w-full ${sidebarOpen ? 'flex gap-2' : 'flex flex-col items-center gap-4'}`}>
+              <NotificationBell 
+                user={currentUser} 
+                issues={issues} 
+                thermography={thermography} 
+                vibration={vibration}
+                sidebarOpen={sidebarOpen}
+                onViewGUT={(id) => { const issue = issues.find(i => i.id === id); if (issue) { setCurrentIssue(issue); setShowDetails(true); setView('gut'); } }}
+                onViewThermo={() => setView('thermography')}
+                onViewVib={() => setView('vibration')}
+              />
+              {sidebarOpen && (
+                <div className="bg-slate-800/50 border border-slate-700 rounded-xl px-3 py-2 flex-1 flex items-center justify-between">
+                   <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Sincronismo</span>
+                   <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)] animate-pulse"></div>
+                </div>
+              )}
+          </div>
+
           <div className="w-full space-y-1">
             <p className={`text-[7px] font-black text-slate-600 uppercase tracking-[0.3em] mb-2 ml-3 ${!sidebarOpen && 'hidden'}`}>Central de Controle</p>
             <NavButton target="dashboard" icon={LayoutDashboard} label="Dashboard" colorClass="bg-slate-100 text-slate-950" visible={userPermissions?.can_view_dashboard} />
@@ -288,12 +312,10 @@ function App() {
 
             <div className="pt-4 space-y-1">
                <p className={`text-[7px] font-black text-slate-600 uppercase tracking-[0.3em] mb-2 ml-3 ${!sidebarOpen && 'hidden'}`}>Setores Operacionais</p>
-               <NavButton target="sector-mecanica" icon={Wrench} label="Mecânica" colorClass="bg-blue-600 text-white" visible={userPermissions?.can_view_sector} />
-               <NavButton target="sector-eletrica" icon={Zap} label="Elétrica" colorClass="bg-yellow-600 text-white" visible={userPermissions?.can_view_sector} />
-               <NavButton target="sector-instrumentacao" icon={Radio} label="Instrum." colorClass="bg-purple-600 text-white" visible={userPermissions?.can_view_sector} />
+               <NavButton target="sector-mecanica-lub" icon={Wrench} label="Mecânica e Lub" colorClass="bg-blue-600 text-white" visible={userPermissions?.can_view_sector} />
+               <NavButton target="sector-eletrica-instr" icon={Zap} label="Elétrica e Instr" colorClass="bg-yellow-600 text-white" visible={userPermissions?.can_view_sector} />
                <NavButton target="sector-operacao" icon={ClipboardCheck} label="Operação" colorClass="bg-emerald-600 text-white" visible={userPermissions?.can_view_sector} />
                <NavButton target="sector-quimica" icon={FlaskConical} label="Química" colorClass="bg-pink-600 text-white" visible={userPermissions?.can_view_sector} />
-               <NavButton target="sector-lubrificacao" icon={Droplets} label="Lubrif." colorClass="bg-cyan-600 text-white" visible={userPermissions?.can_view_sector} />
             </div>
 
             <div className="pt-4 space-y-1 pb-4">
@@ -350,6 +372,9 @@ function App() {
                   issues={issues} 
                   currentUser={currentUser}
                   onNavigate={(target: any) => setView(target)}
+                  onStatusChange={handleStatusChangeAttempt}
+                  onEdit={(id) => { const issue = issues.find(i => i.id === id); if (issue) { setCurrentIssue(issue); setShowForm(true); } }}
+                  onDetails={(id) => { const issue = issues.find(i => i.id === id); if (issue) { setCurrentIssue(issue); setShowDetails(true); } }}
                 />
               )}
               {view === 'gut' && userPermissions?.can_view_gut && (

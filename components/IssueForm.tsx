@@ -4,7 +4,7 @@ import { GUTIssue, Status, Equipment } from '../types';
 import { analyzeIssueWithAI } from '../services/geminiService';
 import { storageService, equipmentService } from '../services/supabase';
 import { GUT_SCALES } from '../constants';
-import { Bot, Save, Loader2, Sparkles, Trash2, X, Paperclip, FileText, Zap, Info, Cpu } from 'lucide-react';
+import { Bot, Save, Loader2, Sparkles, Trash2, X, Paperclip, FileText, Zap, Info, Cpu, Briefcase } from 'lucide-react';
 
 interface IssueFormProps {
   onSave: (issue: Omit<GUTIssue, 'id' | 'createdAt'>, id?: string) => void;
@@ -15,6 +15,13 @@ interface IssueFormProps {
   onConnectAI?: () => void;
   isAIConnected?: boolean;
 }
+
+const AVAILABLE_SECTORS = [
+  'Mecanica e lub',
+  'eletrica e instrumentação',
+  'operação',
+  'quimica'
+];
 
 export const IssueForm: React.FC<IssueFormProps> = ({ 
   onSave, 
@@ -29,6 +36,7 @@ export const IssueForm: React.FC<IssueFormProps> = ({
   const [description, setDescription] = useState(initialData?.description || '');
   const [immediateAction, setImmediateAction] = useState(initialData?.immediateAction || '');
   const [area, setArea] = useState<string>(initialData?.area || areas[0] || '');
+  const [sector, setSector] = useState<string>(initialData?.sector || AVAILABLE_SECTORS[0]);
   const [equipmentName, setEquipmentName] = useState(initialData?.equipmentName || '');
   const [gravity, setGravity] = useState<number>(initialData?.gravity || 1);
   const [urgency, setUrgency] = useState<number>(initialData?.urgency || 1);
@@ -51,6 +59,7 @@ export const IssueForm: React.FC<IssueFormProps> = ({
       setDescription(initialData.description);
       setImmediateAction(initialData.immediateAction || '');
       setArea(initialData.area);
+      setSector(initialData.sector || AVAILABLE_SECTORS[0]);
       setEquipmentName(initialData.equipmentName || '');
       setGravity(initialData.gravity);
       setUrgency(initialData.urgency);
@@ -141,6 +150,7 @@ export const IssueForm: React.FC<IssueFormProps> = ({
       description,
       immediateAction,
       area,
+      sector,
       equipmentName,
       gravity,
       urgency,
@@ -166,7 +176,7 @@ export const IssueForm: React.FC<IssueFormProps> = ({
   };
 
   return (
-    <div className="bg-slate-800 rounded-2xl shadow-2xl p-5 lg:p-7 max-w-4xl mx-auto border border-slate-700 animate-fade-in ring-1 ring-white/5 overflow-hidden">
+    <div className="bg-slate-800 rounded-2xl shadow-2xl p-5 lg:p-7 max-w-5xl mx-auto border border-slate-700 animate-fade-in ring-1 ring-white/5 overflow-hidden">
       <div className="flex justify-between items-center mb-5 border-b border-slate-700 pb-4">
         <div>
             <h2 className="text-lg lg:text-xl font-black text-white tracking-tight uppercase">
@@ -183,25 +193,33 @@ export const IssueForm: React.FC<IssueFormProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-5 items-start">
           
           <div className="lg:col-span-3 space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 items-end">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3.5 items-end">
               <div>
-                <label className="flex h-4 items-end text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Subsistema de Origem</label>
+                <label className="flex h-4 items-end text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Subsistema</label>
                 <select value={area} onChange={(e) => {setArea(e.target.value); setEquipmentName('');}} className="w-full rounded-lg bg-slate-950 border-slate-700 text-slate-100 p-2.5 border outline-none font-bold text-xs focus:border-green-500/50 transition-all h-10">
                   {areas.map(a => <option key={a} value={a}>{a}</option>)}
                 </select>
               </div>
               <div>
                 <label className="flex h-4 items-end gap-1 text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">
-                  <Cpu size={10} className="mb-0.5" /> Ativo Relacionado
+                  <Briefcase size={10} className="mb-0.5" /> Setor
+                </label>
+                <select value={sector} onChange={(e) => setSector(e.target.value)} className="w-full rounded-lg bg-slate-950 border-slate-700 text-slate-100 p-2.5 border outline-none font-bold text-xs focus:border-green-500/50 transition-all h-10">
+                   {AVAILABLE_SECTORS.map(s => <option key={s} value={s}>{s.toUpperCase()}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="flex h-4 items-end gap-1 text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">
+                  <Cpu size={10} className="mb-0.5" /> Ativo
                 </label>
                 <select value={equipmentName} onChange={(e) => setEquipmentName(e.target.value)} className="w-full rounded-lg bg-slate-950 border-slate-700 text-slate-100 p-2.5 border outline-none font-bold text-xs focus:border-green-500/50 transition-all h-10">
-                   <option value="">Nenhum ativo selecionado</option>
+                   <option value="">Nenhum ativo</option>
                    {availableEquipments.map(eq => <option key={eq.id} value={eq.name}>{eq.tag} - {eq.name}</option>)}
                 </select>
               </div>
               <div>
                 <label className="flex h-4 items-end text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Evento Crítico</label>
-                <input type="text" required value={title} onChange={(e) => setTitle(e.target.value)} className="w-full rounded-lg bg-slate-950 border-slate-700 text-slate-100 p-2.5 border outline-none font-bold text-xs focus:border-green-500/50 transition-all h-10" placeholder="Título resumido da falha" />
+                <input type="text" required value={title} onChange={(e) => setTitle(e.target.value)} className="w-full rounded-lg bg-slate-950 border-slate-700 text-slate-100 p-2.5 border outline-none font-bold text-xs focus:border-green-500/50 transition-all h-10" placeholder="Título da falha" />
               </div>
             </div>
 
@@ -209,7 +227,7 @@ export const IssueForm: React.FC<IssueFormProps> = ({
               <div className="space-y-3">
                 <div>
                   <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Relato Técnico Detalhado</label>
-                  <textarea required rows={3} value={description} onChange={(e) => setDescription(e.target.value)} className="w-full rounded-lg bg-slate-950 border-slate-700 text-slate-100 p-2.5 border outline-none text-[11px] leading-relaxed" placeholder="Descreva os sintomas, pressões e parâmetros observados..." />
+                  <textarea required rows={3} value={description} onChange={(e) => setDescription(e.target.value)} className="w-full rounded-lg bg-slate-950 border-slate-700 text-slate-100 p-2.5 border outline-none text-[11px] leading-relaxed" placeholder="Descreva os sintomas observados..." />
                 </div>
                 
                 {aiReasoning && (
@@ -226,9 +244,9 @@ export const IssueForm: React.FC<IssueFormProps> = ({
               <div className="space-y-3">
                 <div>
                   <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1 flex items-center gap-2">
-                    <Zap size={11} className="text-amber-400" /> Ação Imediata Recomendada (Operador)
+                    <Zap size={11} className="text-amber-400" /> Ação Imediata Recomendada
                   </label>
-                  <textarea rows={3} value={immediateAction} onChange={(e) => setImmediateAction(e.target.value)} className="w-full rounded-lg bg-slate-950 border-slate-700 text-slate-100 p-2.5 border outline-none text-[11px] leading-relaxed" placeholder="Qual a primeira providência para conter o risco?" />
+                  <textarea rows={3} value={immediateAction} onChange={(e) => setImmediateAction(e.target.value)} className="w-full rounded-lg bg-slate-950 border-slate-700 text-slate-100 p-2.5 border outline-none text-[11px] leading-relaxed" placeholder="Qual a primeira providência?" />
                 </div>
 
                 {aiActionComment && (
@@ -246,7 +264,7 @@ export const IssueForm: React.FC<IssueFormProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                <div className="bg-slate-950/40 p-3 rounded-xl border border-slate-700/50">
                   <label className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-1 flex items-center gap-2">
-                    <Paperclip size={11} /> Documentação Operacional / Evidência
+                    <Paperclip size={11} /> Documentação / Evidência
                   </label>
                   {attachmentUrl ? (
                     <div className="flex items-center justify-between bg-green-900/10 border border-green-800/30 p-2 rounded-lg">

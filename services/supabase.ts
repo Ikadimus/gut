@@ -283,6 +283,7 @@ export const issueService = {
     if (issue.title !== undefined) dbObj.title = issue.title;
     if (issue.description !== undefined) dbObj.description = issue.description;
     if (issue.area !== undefined) dbObj.area = issue.area;
+    if (issue.sector !== undefined) dbObj.sector = issue.sector;
     if (issue.gravity !== undefined) dbObj.gravity = issue.gravity;
     if (issue.urgency !== undefined) dbObj.urgency = issue.urgency;
     if (issue.tendency !== undefined) dbObj.tendency = issue.tendency;
@@ -305,6 +306,7 @@ export const issueService = {
       description: dbIssue.description || '',
       immediateAction: dbIssue.immediate_action || '',
       area: dbIssue.area || '',
+      sector: dbIssue.sector || '',
       equipmentName: dbIssue.equipment_name,
       gravity: dbIssue.gravity || 1,
       urgency: dbIssue.urgency || 1,
@@ -458,7 +460,7 @@ export const vibrationService = {
     setIfValid('ai_analysis', record.aiAnalysis);
     setIfValid('ai_recommendation', record.aiRecommendation);
     setIfValid('risk_level', record.riskLevel);
-    const { data, error } = await supabase.from('vibration').update(dbObj).eq('id', id).select().single();
+    const { data, error = null } = await supabase.from('vibration').update(dbObj).eq('id', id).select().single();
     if (error) throw new Error(getErrorMessage(error));
     return this.mapFromDB(data);
   },
