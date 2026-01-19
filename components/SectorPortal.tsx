@@ -12,6 +12,7 @@ interface SectorPortalProps {
   onStatusChange: (id: string, newStatus: Status) => void;
   onEdit: (id: string) => void;
   onDetails: (id: string) => void;
+  onAdd?: () => void;
 }
 
 interface SectorConfig {
@@ -59,7 +60,8 @@ export const SectorPortal: React.FC<SectorPortalProps> = ({
   currentUser, 
   onStatusChange, 
   onEdit, 
-  onDetails 
+  onDetails,
+  onAdd
 }) => {
   const config = SECTOR_CONFIGS[sectorId];
 
@@ -125,6 +127,7 @@ export const SectorPortal: React.FC<SectorPortalProps> = ({
         onStatusChange={onStatusChange}
         onEdit={onEdit}
         onDetails={onDetails}
+        onAdd={onAdd}
       />
     </div>
   );

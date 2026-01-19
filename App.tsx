@@ -420,13 +420,14 @@ function App() {
                       onStatusChange={handleStatusChangeAttempt}
                       onEdit={(id) => { const issue = issues.find(i => i.id === id); if (issue) { setCurrentIssue(issue); setShowForm(true); } }}
                       onDetails={(id) => { const issue = issues.find(i => i.id === id); if (issue) { setCurrentIssue(issue); setShowDetails(true); } }}
+                      onAdd={currentUser.role !== UserRole.VIEWER ? () => { setCurrentIssue(null); setShowForm(true); } : undefined}
                     />
                   )}
                 </div>
               )}
               {view === 'gut' && userPermissions?.can_view_gut && (
                 <div className="space-y-6">
-                   {showForm ? <IssueForm onSave={handleSaveIssue} onCancel={() => {setShowForm(false); setCurrentIssue(null);}} onDelete={async (id) => { if (!isAdmin) return; await issueService.delete(id); setIssues(prev => prev.filter(i => i.id !== id)); setShowForm(false); }} areas={areas.length > 0 ? areas : ["Geral"]} initialData={currentIssue} onConnectAI={handleConnectAi} isAIConnected={aiConnected} /> : <GUTTable issues={issues} onStatusChange={handleStatusChangeAttempt} onEdit={(id) => { const issue = issues.find(i => i.id === id); if (issue) { setCurrentIssue(issue); setShowForm(true); } }} onDetails={(id) => { const issue = issues.find(i => i.id === id); if (issue) { setCurrentIssue(issue); setShowDetails(true); } }} onAdd={!UserRole.VIEWER ? () => { setCurrentIssue(null); setShowForm(true); } : undefined} />}
+                   {showForm ? <IssueForm onSave={handleSaveIssue} onCancel={() => {setShowForm(false); setCurrentIssue(null);}} onDelete={async (id) => { if (!isAdmin) return; await issueService.delete(id); setIssues(prev => prev.filter(i => i.id !== id)); setShowForm(false); }} areas={areas.length > 0 ? areas : ["Geral"]} initialData={currentIssue} onConnectAI={handleConnectAi} isAIConnected={aiConnected} /> : <GUTTable issues={issues} onStatusChange={handleStatusChangeAttempt} onEdit={(id) => { const issue = issues.find(i => i.id === id); if (issue) { setCurrentIssue(issue); setShowForm(true); } }} onDetails={(id) => { const issue = issues.find(i => i.id === id); if (issue) { setCurrentIssue(issue); setShowDetails(true); } }} onAdd={currentUser.role !== UserRole.VIEWER ? () => { setCurrentIssue(null); setShowForm(true); } : undefined} />}
                 </div>
               )}
               {view === 'thermography' && userPermissions?.can_view_thermo && <ThermographyManager areas={areas} userRole={currentUser.role as UserRole} onViewEquipmentProfile={onViewProfile} />}

@@ -2,7 +2,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Equipment, ThermographyRecord, VibrationRecord, GUTIssue, UserRole } from '../types';
 import { equipmentService, thermographyService, vibrationService, issueService, storageService } from '../services/supabase';
-import { Cpu, ShieldCheck, History, Droplets, Wrench, Calendar, Thermometer, AlertTriangle, Activity, X, Info, ExternalLink, Camera, Loader2, Save, ArrowLeft, Tag, Waves } from 'lucide-react';
+import { DetailsModal } from './DetailsModal';
+import { Cpu, ShieldCheck, History, Droplets, Wrench, Calendar, Thermometer, AlertTriangle, Activity, X, Info, ExternalLink, Camera, Loader2, Save, ArrowLeft, Tag, Waves, Bot, Clock, Gauge, ShieldAlert } from 'lucide-react';
 
 interface EquipmentProfileProps {
   equipmentName: string;
@@ -18,6 +19,11 @@ export const EquipmentProfile: React.FC<EquipmentProfileProps> = ({ equipmentNam
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [uploading, setUploading] = useState(false);
+
+  // States for Details View
+  const [selectedGUT, setSelectedGUT] = useState<GUTIssue | null>(null);
+  const [selectedThermo, setSelectedThermo] = useState<ThermographyRecord | null>(null);
+  const [selectedVib, setSelectedVib] = useState<VibrationRecord | null>(null);
 
   // Edit fields
   const [tag, setTag] = useState('');
@@ -108,6 +114,15 @@ export const EquipmentProfile: React.FC<EquipmentProfileProps> = ({ equipmentNam
       alert("Erro crítico ao atualizar ativo: " + err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const getRiskColor = (level: string) => {
+    switch (level) {
+      case 'Crítico': return 'text-red-500 border-red-500/20 bg-red-500/10';
+      case 'Perigoso': return 'text-orange-500 border-orange-500/20 bg-orange-500/10';
+      case 'Alerta': return 'text-yellow-500 border-yellow-500/20 bg-yellow-500/10';
+      default: return 'text-emerald-500 border-emerald-500/20 bg-emerald-500/10';
     }
   };
 
@@ -292,8 +307,8 @@ export const EquipmentProfile: React.FC<EquipmentProfileProps> = ({ equipmentNam
                                   <p className="text-[9px] font-black text-slate-600 uppercase">Temperatura</p>
                                   <p className={`text-xl font-black italic ${isCritical ? 'text-red-500' : 'text-slate-100'}`}>{record.currentTemp}°C</p>
                                </div>
-                               <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <button className="p-2 text-slate-500 hover:text-white transition-colors"><ExternalLink size={18}/></button>
+                               <div>
+                                  <button onClick={() => setSelectedThermo(record)} className="p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-500 hover:text-white transition-all"><ExternalLink size={18}/></button>
                                </div>
                             </div>
                          </div>
@@ -338,8 +353,8 @@ export const EquipmentProfile: React.FC<EquipmentProfileProps> = ({ equipmentNam
                                 <p className="text-[9px] font-black text-slate-600 uppercase">Velocidade RMS</p>
                                 <p className="text-xl font-black italic text-slate-100">{record.overallVelocity} <span className="text-[10px] uppercase ml-1 opacity-50 font-sans">mm/s</span></p>
                              </div>
-                             <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button className="p-2 text-slate-500 hover:text-white transition-colors"><ExternalLink size={18}/></button>
+                             <div>
+                                <button onClick={() => setSelectedVib(record)} className="p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-500 hover:text-white transition-all"><ExternalLink size={18}/></button>
                              </div>
                           </div>
                        </div>
@@ -381,7 +396,7 @@ export const EquipmentProfile: React.FC<EquipmentProfileProps> = ({ equipmentNam
                           <p className="text-xs text-slate-500 italic leading-relaxed line-clamp-2">"{issue.description}"</p>
                           <div className="mt-4 pt-4 border-t border-slate-900 flex justify-between items-center">
                              <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${issue.status === 'Resolvido' ? 'bg-green-900/20 text-green-500' : 'bg-blue-900/20 text-blue-500'}`}>{issue.status}</span>
-                             <button className="text-[9px] font-black text-slate-600 hover:text-white transition-colors uppercase tracking-widest flex items-center gap-1">Ver Detalhes <ExternalLink size={10}/></button>
+                             <button onClick={() => setSelectedGUT(issue)} className="text-[9px] font-black text-slate-600 hover:text-white transition-colors uppercase tracking-widest flex items-center gap-1">Ver Detalhes <ExternalLink size={10}/></button>
                           </div>
                        </div>
                      ))
@@ -390,6 +405,135 @@ export const EquipmentProfile: React.FC<EquipmentProfileProps> = ({ equipmentNam
              </div>
           </div>
        </div>
+
+       {/* MODAL GUT DETAILS */}
+       {selectedGUT && <DetailsModal issue={selectedGUT} onClose={() => setSelectedGUT(null)} />}
+
+       {/* MODAL THERMO DETAILS */}
+       {selectedThermo && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-950/95 backdrop-blur-md animate-fade-in">
+           <div className="bg-slate-900 border border-slate-800 w-full max-w-4xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-slide-up flex flex-col lg:flex-row max-h-[90vh]">
+              <div className="lg:w-1/3 bg-slate-950 p-8 flex flex-col border-r border-slate-800">
+                 <div className="mb-6">
+                    <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter mb-1">{selectedThermo.equipmentName}</h3>
+                    <p className="text-[10px] text-slate-500 font-black uppercase tracking-[0.2em]">{selectedThermo.area}</p>
+                 </div>
+                 {selectedThermo.attachmentUrl ? (
+                   <div className="relative rounded-3xl overflow-hidden border border-slate-800 mb-6 aspect-square">
+                      <img src={selectedThermo.attachmentUrl} className="w-full h-full object-cover" alt="Termografia" />
+                   </div>
+                 ) : (
+                   <div className="bg-slate-900 rounded-3xl aspect-square flex flex-col items-center justify-center border border-slate-800 border-dashed text-slate-700 mb-6"><Camera size={40}/></div>
+                 )}
+                 <div className="mt-auto space-y-4">
+                    <div className="bg-slate-900/50 p-4 rounded-2xl border border-slate-800 flex justify-between items-center">
+                       <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Temp. Ambiente</span>
+                       <span className="text-sm font-black text-blue-400">{selectedThermo.minTemp}°C</span>
+                    </div>
+                    <div className="bg-slate-900/50 p-4 rounded-2xl border border-slate-800 flex justify-between items-center">
+                       <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Delta T</span>
+                       <span className="text-sm font-black text-white">{selectedThermo.currentTemp - selectedThermo.minTemp}°C</span>
+                    </div>
+                 </div>
+              </div>
+              <div className="flex-1 p-8 lg:p-12 overflow-y-auto custom-scrollbar flex flex-col">
+                 <div className="flex justify-between items-center mb-10">
+                    <div className="flex items-center gap-3">
+                       <div className="p-3 rounded-2xl bg-orange-500/10 text-orange-400 border border-orange-500/20"><Thermometer size={24} /></div>
+                       <div>
+                          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none">Status de Integridade</p>
+                          <h4 className="text-lg font-black text-white uppercase tracking-tight mt-1">Laudo Técnico Preditivo</h4>
+                       </div>
+                    </div>
+                    <button onClick={() => setSelectedThermo(null)} className="p-3 bg-slate-800 hover:bg-slate-700 rounded-2xl text-slate-400 transition-all"><X size={20}/></button>
+                 </div>
+                 <div className="space-y-8">
+                    <div className="bg-slate-950/50 border border-slate-800 p-4 rounded-2xl flex items-center justify-between">
+                       <div className="flex items-center gap-3"><Clock size={16} className="text-blue-400" /><span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Data do Laudo:</span></div>
+                       <span className="text-xs font-black text-slate-100">{new Date(selectedThermo.createdAt).toLocaleString()}</span>
+                    </div>
+                    <div className="space-y-3">
+                       <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2"><Bot size={14} className="text-purple-400" /> Parecer Digital (IA Core)</h5>
+                       <div className="bg-slate-950 border border-slate-800 p-6 rounded-3xl"><p className="text-xs text-slate-300 italic leading-relaxed">"{selectedThermo.aiAnalysis || 'Análise indisponível.'}"</p></div>
+                    </div>
+                    <div className="space-y-3">
+                       <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2"><ShieldCheck size={14} className="text-green-400" /> Ações Sugeridas</h5>
+                       <div className="bg-green-950/20 border border-green-900/40 p-6 rounded-3xl"><p className="text-xs text-slate-100 font-bold leading-relaxed">{selectedThermo.aiRecommendation || 'Verificar manualmente.'}</p></div>
+                    </div>
+                 </div>
+                 <div className="mt-auto pt-10 flex justify-end"><button onClick={() => setSelectedThermo(null)} className="bg-slate-800 px-8 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest text-white hover:bg-slate-700 transition-all">Fechar Laudo</button></div>
+              </div>
+           </div>
+        </div>
+       )}
+
+       {/* MODAL VIB DETAILS */}
+       {selectedVib && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-950/95 backdrop-blur-md animate-fade-in">
+           <div className="bg-slate-900 border border-slate-800 w-full max-w-4xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-slide-up flex flex-col lg:flex-row max-h-[90vh]">
+              <div className="lg:w-1/3 bg-slate-950 p-8 flex flex-col border-r border-slate-800">
+                 <div className="mb-6">
+                    <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter mb-1">{selectedVib.equipmentName}</h3>
+                    <p className="text-[10px] text-slate-500 font-black uppercase tracking-[0.2em]">{selectedVib.area}</p>
+                 </div>
+                 {selectedVib.attachmentUrl ? (
+                   <div className="relative rounded-3xl overflow-hidden border border-slate-800 mb-6 aspect-square">
+                      <img src={selectedVib.attachmentUrl} className="w-full h-full object-cover" alt="Vibração" />
+                   </div>
+                 ) : (
+                   <div className="bg-slate-900 rounded-3xl aspect-square flex flex-col items-center justify-center border border-slate-800 border-dashed text-slate-700 mb-6"><Activity size={40}/></div>
+                 )}
+                 <div className="mt-auto space-y-4">
+                    <div className="bg-slate-900/50 p-4 rounded-2xl border border-slate-800 flex justify-between items-center">
+                       <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Aceleração</span>
+                       <span className="text-sm font-black text-purple-400">{selectedVib.acceleration} g</span>
+                    </div>
+                    <div className="bg-slate-900/50 p-4 rounded-2xl border border-slate-800 flex justify-between items-center">
+                       <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Freq. Pico</span>
+                       <span className="text-sm font-black text-white">{selectedVib.peakFrequency} Hz</span>
+                    </div>
+                 </div>
+              </div>
+              <div className="flex-1 p-8 lg:p-12 overflow-y-auto custom-scrollbar flex flex-col">
+                 <div className="flex justify-between items-center mb-10">
+                    <div className="flex items-center gap-3">
+                       <div className="p-3 rounded-2xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"><Waves size={24} /></div>
+                       <div>
+                          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none">Análise Dinâmica</p>
+                          <h4 className="text-lg font-black text-white uppercase tracking-tight mt-1">Laudo de Vibração Industrial</h4>
+                       </div>
+                    </div>
+                    <button onClick={() => setSelectedVib(null)} className="p-3 bg-slate-800 hover:bg-slate-700 rounded-2xl text-slate-400 transition-all"><X size={20}/></button>
+                 </div>
+                 <div className="space-y-8">
+                    <div className="bg-slate-950/50 border border-slate-800 p-4 rounded-2xl flex items-center justify-between">
+                       <div className="flex items-center gap-3"><Clock size={16} className="text-blue-400" /><span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Inspeção em:</span></div>
+                       <span className="text-xs font-black text-slate-100">{new Date(selectedVib.lastInspection).toLocaleDateString()}</span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                       <div className="p-6 bg-slate-950 border border-slate-800 rounded-3xl flex items-center justify-between">
+                          <div><p className="text-[8px] font-black text-slate-500 uppercase mb-1">Velocidade Global</p><p className="text-2xl font-black text-white italic">{selectedVib.overallVelocity} mm/s</p></div>
+                          <Gauge size={32} className="text-cyan-500/20" />
+                       </div>
+                       <div className="p-6 bg-slate-950 border border-slate-800 rounded-3xl flex items-center justify-between">
+                          <div><p className="text-[8px] font-black text-slate-500 uppercase mb-1">Nível de Risco</p><p className={`text-xl font-black uppercase ${getRiskColor(selectedVib.riskLevel || '').split(' ')[0]}`}>{selectedVib.riskLevel || 'Normal'}</p></div>
+                          <ShieldAlert size={32} className="opacity-20" />
+                       </div>
+                    </div>
+                    <div className="space-y-3">
+                       <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2"><Bot size={14} className="text-cyan-400" /> Diagnóstico (IA)</h5>
+                       <div className="bg-slate-950 border border-slate-800 p-6 rounded-3xl"><p className="text-xs text-slate-300 italic leading-relaxed">"{selectedVib.aiAnalysis || 'Pendente.'}"</p></div>
+                    </div>
+                    <div className="space-y-3">
+                       <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2"><ShieldCheck size={14} className="text-green-400" /> Conduta Preditiva</h5>
+                       <div className="bg-green-950/20 border border-green-900/40 p-6 rounded-3xl"><p className="text-xs text-slate-100 font-bold leading-relaxed">{selectedVib.aiRecommendation || 'Aguardando avaliação.'}</p></div>
+                    </div>
+                 </div>
+                 <div className="mt-auto pt-10 flex justify-end"><button onClick={() => setSelectedVib(null)} className="bg-slate-800 px-8 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest text-white hover:bg-slate-700 transition-all">Fechar Laudo</button></div>
+              </div>
+           </div>
+        </div>
+       )}
     </div>
   );
 };
